@@ -1,0 +1,322 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+
+  /* Mộc Miên Inspired - Montserrat + Cormorant Garamond */
+  body {
+    background-color: #FAF7F2;
+    /* Champagne */
+    color: #6B6B6B;
+    /* Soft Grey */
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    letter-spacing: 0.02em;
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Montserrat', sans-serif;
+    color: #4A4A4A;
+    /* Charcoal Grey */
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  h1 {
+    font-size: 3rem;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+  }
+
+  @media (min-width: 768px) {
+    h1 {
+      font-size: 4rem;
+    }
+  }
+
+  h2 {
+    font-size: 2rem;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+  }
+
+  @media (min-width: 768px) {
+    h2 {
+      font-size: 2.75rem;
+    }
+  }
+
+  h3 {
+    font-size: 1.875rem;
+    font-weight: 500;
+  }
+
+  @media (min-width: 768px) {
+    h3 {
+      font-size: 2.25rem;
+    }
+  }
+
+  h4 {
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  @media (min-width: 768px) {
+    h4 {
+      font-size: 1.875rem;
+    }
+  }
+
+  a {
+    color: #B76E79;
+    /* Rose Gold */
+    transition: color 0.3s;
+  }
+
+  a:hover {
+    color: #4A4A4A;
+    /* Charcoal */
+  }
+}
+
+@layer components {
+
+  /* Elegant Bordered Button - Champagne & Rose Gold */
+  .btn-luxury {
+    padding: 12px 32px;
+    border: 1px solid #4A4A4A;
+    color: #4A4A4A;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-weight: 500;
+    transition: all 0.3s;
+    cursor: pointer;
+    background-color: transparent;
+  }
+
+  .btn-luxury:hover {
+    background-color: #B76E79;
+    color: #FFFFFF;
+    border-color: #B76E79;
+  }
+
+  .btn-luxury-outline {
+    padding: 12px 32px;
+    border: 1px solid #A89678;
+    color: #A89678;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-weight: 400;
+    transition: all 0.3s;
+    cursor: pointer;
+    background-color: transparent;
+  }
+
+  .btn-luxury-outline:hover {
+    border-color: #2C2415;
+    color: #2C2415;
+  }
+
+  .btn-luxury-small {
+    padding: 8px 24px;
+    border: 1px solid #2C2415;
+    color: #2C2415;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    transition: all 0.3s;
+    cursor: pointer;
+    background-color: transparent;
+  }
+
+  .btn-luxury-small:hover {
+    background-color: #2C2415;
+    color: #FFFFFF;
+  }
+
+  .btn-luxury-large {
+    padding: 16px 40px;
+    border: 1px solid #2C2415;
+    color: #2C2415;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+    transition: all 0.3s;
+    cursor: pointer;
+    background-color: transparent;
+  }
+
+  .btn-luxury-large:hover {
+    background-color: #2C2415;
+    color: #FFFFFF;
+  }
+
+  /* Card with subtle shadow - Product Cards */
+  .card-luxury {
+    background-color: #FFFFFF;
+    border: 1px solid #EDE6DC;
+    transition: all 0.3s;
+  }
+
+  .card-luxury:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    border-color: #F5E6D3;
+  }
+
+  /* Product Card - Soft Peach accent */
+  .product-card {
+    background-color: #FFFBF8;
+    border: 1px solid #F5E6D3;
+    transition: all 0.3s;
+  }
+
+  .product-card:hover {
+    background-color: #F5E6D3;
+    border-color: #E2D8CC;
+    box-shadow: 0 8px 12px rgba(245, 230, 211, 0.3);
+  }
+
+  /* Input fields */
+  .input-luxury {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #EDE6DC;
+    background-color: #FCFAF8;
+    color: #6B5845;
+    font-size: 14px;
+    transition: all 0.3s;
+  }
+
+  .input-luxury:focus {
+    outline: none;
+    border-color: #D9CCBE;
+    background-color: #FFFFFF;
+  }
+
+  /* Section spacing - Boutique Style */
+  .section-luxury {
+    padding-top: 48px;
+    padding-bottom: 48px;
+  }
+
+  @media (min-width: 768px) {
+    .section-luxury {
+      padding-top: 64px;
+      padding-bottom: 64px;
+    }
+  }
+
+  /* Container - Boutique Style (max-w-6xl) */
+  .container-luxury {
+    max-width: 72rem;
+    /* max-w-6xl */
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  @media (min-width: 768px) {
+    .container-luxury {
+      padding-left: 24px;
+      padding-right: 24px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-luxury {
+      padding-left: 32px;
+      padding-right: 32px;
+    }
+  }
+}
+
+@layer utilities {
+  .text-heading {
+    color: #2C2415;
+    font-family: 'Montserrat', sans-serif;
+  }
+
+  .text-body {
+    color: #A89678;
+    font-family: 'Montserrat', sans-serif;
+  }
+
+  .text-accent {
+    color: #333333;
+  }
+
+  .bg-subtle {
+    background-color: #FFFFFF;
+  }
+
+  .bg-cream {
+    background-color: #F5F1ED;
+  }
+
+  .border-subtle {
+    border-color: #E8DFD3;
+  }
+
+  .tracking-luxury {
+    letter-spacing: 0.15em;
+  }
+
+  .tracking-luxury-wide {
+    letter-spacing: 0.2em;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAF7F2;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #A89678;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #5C4033;
+}
+
+/* Loading Animation */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
