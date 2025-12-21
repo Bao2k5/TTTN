@@ -2,10 +2,6 @@
 > **Đồ án Thực tập Tốt nghiệp (Graduation Project) - Học viện Hàng không Việt Nam (VAA)**
 > *Chủ đề: Tích hợp Edge AI, IoT và Điện toán Đám mây (Hybrid Cloud Model)*
 
-![Status](https://img.shields.io/badge/Status-Completed-success?style=for-the-badge)
-![Tech](https://img.shields.io/badge/Tech-NodeJS%20|%20AWS%20|%20ESP32%20|%20AI-blue?style=for-the-badge)
-![Platform](https://img.shields.io/badge/Platform-Web%20|%20Mobile%20|%20IoT-orange?style=for-the-badge)
-
 ---
 
 ## 📖 Giới thiệu (Overview)
