@@ -11,15 +11,15 @@ const fixImageUrls = async () => {
   try {
     console.log('🔗 Connecting to MongoDB...');
     await connectDB();
-    
+
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
     console.log(`📝 Backend URL: ${backendUrl}`);
-    
+
     // Fix Collections
     console.log('\n📦 Fixing collection image URLs...');
     const collections = await Collection.find();
     let collectionCount = 0;
-    
+
     for (const collection of collections) {
       if (collection.image && collection.image.startsWith('/uploads/')) {
         const oldUrl = collection.image;
@@ -33,15 +33,15 @@ const fixImageUrls = async () => {
         console.log(`   ✓ ${collection.name}: ${collection.image || 'No image'} (already OK)`);
       }
     }
-    
+
     // Fix Products
     console.log('\n🏆 Fixing product image URLs...');
     const products = await Product.find();
     let productCount = 0;
-    
+
     for (const product of products) {
       let updated = false;
-      
+
       if (product.images && Array.isArray(product.images)) {
         product.images = product.images.map(img => {
           if (typeof img === 'string' && img.startsWith('/uploads/')) {
@@ -54,7 +54,7 @@ const fixImageUrls = async () => {
           }
           return img;
         });
-        
+
         if (updated) {
           await product.save();
           console.log(`   ✓ ${product.name}`);
@@ -62,14 +62,14 @@ const fixImageUrls = async () => {
         }
       }
     }
-    
+
     console.log('\n' + '='.repeat(50));
     console.log('✅ Image URL fix completed!');
     console.log(`   Collections updated: ${collectionCount}`);
     console.log(`   Products updated: ${productCount}`);
     console.log('\n💡 All image URLs now use full backend URL');
     console.log(`   Example: ${backendUrl}/uploads/filename.png`);
-    
+
     process.exit(0);
   } catch (error) {
     console.error('❌ Error:', error);
