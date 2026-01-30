@@ -1,11 +1,32 @@
+# Environment & Credentials
 .env
+**/.env
+.venv/
+env/
+venv/
+
+# Dependencies
 node_modules/
-dist/
-build/
+**/node_modules/
+
+# Python & AI
 __pycache__/
 *.pyc
+*.pt
+runs/
+dataset/train/
+dataset/val/
 
-# Docs & Diagrams (Local only)
+# Build & Dist
+dist/
+build/
+
+# IDEs & System
+.vscode/
+.idea/
+.DS_Store
+*.log
+
+# Project Documentation (Local only)
 system_design.md
 sequence_diagrams.md
-*.log

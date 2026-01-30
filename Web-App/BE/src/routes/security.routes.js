@@ -59,13 +59,31 @@ router.get('/alert-status', async (req, res) => {
         }).sort({ timestamp: -1 });
 
         if (recentAlert) {
-            return res.json({ alert: true, message: "INTRUSION DETECTED", type: recentAlert.type });
+            return res.json({ shouldAlert: true, message: "INTRUSION DETECTED", type: recentAlert.type });
         }
 
-        res.json({ alert: false, message: "SAFE" });
+        res.json({ shouldAlert: false, message: "SAFE" });
     } catch (error) {
         console.error('Lỗi check status:', error);
         res.status(500).json({ alert: false, error: 'Server Error' });
+    }
+});
+
+// @route   POST /api/security/reset-alarm
+// @desc    API cho nhân viên tắt còi báo động
+// @access  Public (hoặc Staff Auth)
+router.post('/reset-alarm', async (req, res) => {
+    try {
+        // Xóa tất cả cảnh báo gần đây để tắt còi
+        const result = await SecurityLog.deleteMany({
+            type: { $in: ['WARNING', 'DANGER'] },
+            timestamp: { $gte: new Date(Date.now() - 60 * 1000) } // Xóa trong 60s qua
+        });
+
+        res.json({ success: true, message: "Alarm reset successfully", deletedCount: result.deletedCount });
+    } catch (error) {
+        console.error('Lỗi reset alarm:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
     }
 });
 
