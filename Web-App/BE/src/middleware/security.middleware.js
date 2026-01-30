@@ -6,12 +6,8 @@ const xss = require('xss-clean');
 const hpp = require('hpp');
 
 function corsMiddleware() {
-  const allowed = (process.env.CORS_ORIGIN || '').split(',').map(s=>s.trim()).filter(Boolean);
-  // Default to allow localhost for development
-  const defaultOrigins = ['http://localhost:3001', 'http://localhost:3002', 'http://127.0.0.1:3001'];
-  const origins = allowed.length ? allowed : defaultOrigins;
   const opts = {
-    origin: origins,
+    origin: '*', // Allow ALL origins for local dev debugging
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -22,7 +18,7 @@ function corsMiddleware() {
 const isDev = process.env.NODE_ENV !== 'production';
 
 // Basic API rate limiter
-const basicLimiter = rateLimit({ 
+const basicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: isDev ? 1000 : 200, // 200 requests per 15 minutes in production
   message: 'Too many requests from this IP, please try again later.',
@@ -31,7 +27,7 @@ const basicLimiter = rateLimit({
 });
 
 // Strict limiter for authentication endpoints
-const authLimiter = rateLimit({ 
+const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: isDev ? 100 : 10, // 10 login attempts per 15 minutes in production
   message: 'Too many authentication attempts, please try again later.',
@@ -39,7 +35,7 @@ const authLimiter = rateLimit({
 });
 
 // Very strict limiter for password reset
-const forgotLimiter = rateLimit({ 
+const forgotLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: isDev ? 20 : 5, // 5 password reset attempts per hour in production
   message: 'Too many password reset attempts, please try again later.',
@@ -86,14 +82,14 @@ function xssClean() {
   };
 }
 
-module.exports = { 
-  corsMiddleware, 
-  basicLimiter, 
-  authLimiter, 
-  forgotLimiter, 
+module.exports = {
+  corsMiddleware,
+  basicLimiter,
+  authLimiter,
+  forgotLimiter,
   uploadLimiter,
   paymentLimiter,
-  mongoSanitize, 
-  xss: xssClean, 
-  hpp 
+  mongoSanitize,
+  xss: xssClean,
+  hpp
 };

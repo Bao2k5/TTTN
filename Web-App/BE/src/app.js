@@ -52,8 +52,8 @@ app.use(helmet({
 
 // Security middleware - now with proper error handling
 app.use(mongoSanitize()); // Sanitize data to prevent MongoDB Operator Injection
-app.use(xss()); // Sanitize user input to prevent XSS attacks
-app.use(hpp()); // Protect against HTTP Parameter Pollution attacks
+// app.use(xss()); // Sanitize user input to prevent XSS attacks (Temporarily disabled for debugging)
+// app.use(hpp()); // Protect against HTTP Parameter Pollution attacks
 app.use(basicLimiter);
 
 // Add request logging middleware
@@ -67,7 +67,11 @@ connectDB();
 
 // Mount routes
 const apiRouter = require('./routes/index');
+const securityRouter = require('./routes/security.routes');
+
 app.use('/api', apiRouter);
+app.use('/api/security', securityRouter);
+
 
 // Serve static files from uploads directory
 const uploadsPath = path.join(__dirname, '..', 'uploads');

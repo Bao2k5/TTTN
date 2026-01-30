@@ -1,2 +1,11 @@
 .env
 node_modules/
+dist/
+build/
+__pycache__/
+*.pyc
+
+# Docs & Diagrams (Local only)
+system_design.md
+sequence_diagrams.md
+*.log

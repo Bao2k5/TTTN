@@ -46,6 +46,7 @@ import AdminCollections from './pages/admin/AdminCollections';
 import AdminHeroBanners from './pages/admin/AdminHeroBanners';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminUsers from './pages/admin/AdminUsers';
+import AdminSecurity from './pages/admin/AdminSecurity';
 
 const ComingSoon = ({ title }) => (
   <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-luxury-ivory via-luxury-cream to-luxury-sand">
@@ -100,6 +101,7 @@ function App() {
         <Route path="/admin/hero-banners" element={<AdminHeroBanners />} />
         <Route path="/admin/orders" element={<AdminOrders />} />
         <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/admin/security" element={<AdminSecurity />} />
 
         {/* Public Routes */}
         <Route path="/" element={
