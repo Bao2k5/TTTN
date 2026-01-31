@@ -19,14 +19,6 @@
             "dest": "/BE/server.js"
         },
         {
-            "src": "/assets/(.*)",
-            "dest": "/FE/assets/$1"
-        },
-        {
-            "src": "/(.*)\\.(.*)",
-            "dest": "/FE/$1.$2"
-        },
-        {
             "handle": "filesystem"
         },
         {

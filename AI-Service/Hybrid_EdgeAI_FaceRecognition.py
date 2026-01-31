@@ -18,6 +18,10 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import LabelEncoder
 import joblib
 import mediapipe as mp # Thu vien bat ban tay
+from dotenv import load_dotenv
+
+# Load credentials from .env
+load_dotenv(dotenv_path="../.env")
 
 # API Configuration
 API_URL = "http://localhost:3000/api/security/log"
@@ -374,7 +378,8 @@ class FaceRecognitionApp:
         self.hand_detector = HandDetector()
 
         # 2. DATABASE & CONFIG
-        self.mongo_uri = "mongodb://localhost:27017/"
+        # Lay MONGO_URI tu .env (Uu tien Atlas Cloud da co san)
+        self.mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
         self.setup_mongodb()
         os.makedirs("dataset/train", exist_ok=True) 
         
