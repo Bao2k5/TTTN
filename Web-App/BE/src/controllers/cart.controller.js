@@ -60,14 +60,23 @@ exports.clearCart = async (req, res) => {
 exports.removeItem = async (req, res) => {
   try {
     const { productId } = req.params;
+    console.log('[Cart] Removing item:', productId, 'for user:', req.user.id);
+    
     let cart = await Cart.findOne({ user: req.user.id });
     if (!cart) return res.status(404).json({ msg: 'Cart not found' });
+    
+    console.log('[Cart] Before remove - items count:', cart.items.length);
 
     // Filter out the item
+    const originalLength = cart.items.length;
     cart.items = cart.items.filter(item => item.product.toString() !== productId);
+    console.log('[Cart] After remove - items count:', cart.items.length, '(removed:', originalLength - cart.items.length, ')');
 
     cart.updatedAt = Date.now();
     await cart.save();
+    
+    // Populate before sending response
+    await cart.populate('items.product');
     res.json(cart);
   } catch (err) {
     res.status(500).json({ error: err.message });

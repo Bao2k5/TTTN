@@ -2,10 +2,10 @@
 const express = require('express');
 const router = express.Router();
 const couponController = require('../controllers/coupon.controller');
-const { verifyToken, isAdmin } = require('../middleware/auth.middleware');
+const { verifyToken, isAdmin, optionalAuth } = require('../middleware/auth.middleware');
 
-// Public/User routes
-router.post('/apply', couponController.applyCoupon);
+// Public/User routes (optionalAuth - không bắt buộc login)
+router.post('/apply', optionalAuth, couponController.applyCoupon);
 router.post('/use', verifyToken, couponController.useCoupon);
 
 // Admin routes

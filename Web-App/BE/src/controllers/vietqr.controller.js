@@ -42,6 +42,8 @@ exports.generateQR = async (req, res) => {
   try {
     const { orderId, amount, customerName } = req.body;
     
+    console.log('[VietQR] Generate request:', { orderId, amount, customerName, userId: req.user?.id });
+    
     if (!orderId || !amount) {
       return res.status(400).json({ 
         success: false, 
@@ -49,11 +51,13 @@ exports.generateQR = async (req, res) => {
       });
     }
     
-    // Tạo nội dung chuyển khoản
-    const transferContent = `HM${orderId}`.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    // Tạo nội dung chuyển khoản - giữ ngắn gọn
+    const transferContent = `HM${orderId.slice(-8)}`.toUpperCase();
     
     // Tạo URL QR từ VietQR
     const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.bankId}-${BANK_CONFIG.accountNo}-${BANK_CONFIG.template}.jpg?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(BANK_CONFIG.accountName)}`;
+    
+    console.log('[VietQR] Generated QR URL:', qrUrl);
     
     res.json({
       success: true,
