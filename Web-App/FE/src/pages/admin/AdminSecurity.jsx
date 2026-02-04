@@ -13,20 +13,23 @@ const AdminSecurity = () => {
     const [alarmActive, setAlarmActive] = useState(false);
     const [currentAlert, setCurrentAlert] = useState(null);
     const [isResetting, setIsResetting] = useState(false);
+    const [justReset, setJustReset] = useState(false); // Flag để không trigger lại ngay sau reset
     const audioRef = useRef(null);
 
-    const fetchLogs = async () => {
+    const fetchLogs = async (skipAlarmCheck = false) => {
         try {
             const response = await api.get('/security/logs?limit=50');
             if (response.data.success) {
                 setLogs(response.data.data);
                 
-                // Check if any active danger persists
-                const activeDanger = response.data.data.find(l => 
-                    (l.type === 'DANGER' || l.type === 'WARNING') && l.status === 'active'
-                );
-                if (activeDanger) {
-                    triggerAlarm(activeDanger);
+                // Check if any active danger persists (chỉ khi không vừa reset)
+                if (!skipAlarmCheck) {
+                    const activeDanger = response.data.data.find(l => 
+                        (l.type === 'DANGER' || l.type === 'WARNING') && l.status === 'active'
+                    );
+                    if (activeDanger) {
+                        triggerAlarm(activeDanger);
+                    }
                 }
             }
         } catch (error) {
@@ -46,26 +49,39 @@ const AdminSecurity = () => {
     };
 
     const stopAlarm = async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         
         if (isResetting) return; // Prevent double click
         setIsResetting(true);
         
         try {
+            console.log('🔴 Calling reset-alarm API...');
             const response = await api.post('/security/reset-alarm');
-            console.log('Reset response:', response.data);
+            console.log('✅ Reset response:', response.data);
             
+            // Tắt alarm ngay lập tức
             setAlarmActive(false);
             setCurrentAlert(null);
+            setJustReset(true);
+            
             if (audioRef.current) {
                 audioRef.current.pause();
                 audioRef.current.currentTime = 0;
             }
+            
             toast.success("Đã tắt còi báo động!");
-            fetchLogs(); // Refresh status
+            
+            // Refresh logs nhưng skip alarm check
+            await fetchLogs(true);
+            
+            // Reset flag sau 3 giây
+            setTimeout(() => setJustReset(false), 3000);
+            
         } catch (error) {
-            console.error('Reset error:', error);
+            console.error('❌ Reset error:', error);
             toast.error("Lỗi khi tắt còi: " + (error.response?.data?.message || error.message));
         } finally {
             setIsResetting(false);
@@ -98,7 +114,7 @@ const AdminSecurity = () => {
                 audioRef.current.currentTime = 0;
             }
             toast.success("Cảnh báo đã được xử lý!");
-            fetchLogs();
+            fetchLogs(true); // Skip alarm check when resolved
         });
 
         return () => {
