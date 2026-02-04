@@ -7,6 +7,7 @@ import cartService from '../services/cartService';
 import orderService from '../services/orderService';
 import paymentService from '../services/paymentService';
 import addressService from '../services/addressService';
+import { api } from '../services/api';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -27,6 +28,15 @@ const Checkout = () => {
   const [loading, setLoading] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
+
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+
+  // VietQR state
+  const [qrData, setQrData] = useState(null);
+  const [showQrModal, setShowQrModal] = useState(false);
 
   const { user } = useAuthStore();
   const { items: localItems } = useCartStore();
@@ -107,10 +117,45 @@ const Checkout = () => {
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const shipping = subtotal >= 500000 ? 0 : 50000;
-  const total = subtotal + shipping;
+  const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
+  const total = subtotal + shipping - discount;
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  };
+
+  // Apply coupon handler
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      toast.error('Vui lòng nhập mã giảm giá');
+      return;
+    }
+    
+    setCouponLoading(true);
+    try {
+      const response = await api.post('/coupons/apply', { 
+        code: couponCode.trim(),
+        orderAmount: subtotal
+      });
+      
+      if (response.data.success) {
+        setAppliedCoupon(response.data.data);
+        toast.success(`Áp dụng mã giảm giá thành công! Giảm ${formatPrice(response.data.data.discountAmount)}`);
+      }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Mã giảm giá không hợp lệ';
+      toast.error(message);
+      setAppliedCoupon(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  // Remove coupon
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    toast.success('Đã hủy mã giảm giá');
   };
 
   const handleShippingSubmit = (e) => {
@@ -169,7 +214,7 @@ const Checkout = () => {
       return;
     }
 
-    const validPaymentMethods = ['cod', 'vnpay'];
+    const validPaymentMethods = ['cod', 'vnpay', 'vietqr'];
     if (!paymentMethod || !validPaymentMethods.includes(paymentMethod)) {
       toast.error('Vui lòng chọn phương thức thanh toán hợp lệ');
       setStep(2); // Go back to payment step
@@ -185,10 +230,21 @@ const Checkout = () => {
         email: shippingInfo.email,
         fullName: shippingInfo.fullName,
         note: shippingInfo.note || '',
-        paymentMethod: paymentMethod,
+        paymentMethod: paymentMethod === 'vietqr' ? 'bank_transfer' : paymentMethod,
+        couponCode: appliedCoupon?.code || null,
+        discount: discount
       };
 
       const order = await orderService.createOrder(orderData);
+
+      // Mark coupon as used if applied
+      if (appliedCoupon) {
+        try {
+          await api.post('/coupons/use', { code: appliedCoupon.code });
+        } catch (e) {
+          console.log('Coupon use tracking failed:', e);
+        }
+      }
 
       if (paymentMethod === 'cod') {
 
@@ -204,6 +260,26 @@ const Checkout = () => {
         } else {
           throw new Error('Không thể tạo thanh toán VNPay');
         }
+      } else if (paymentMethod === 'vietqr') {
+        // Generate VietQR
+        try {
+          const qrResponse = await api.post('/payment/vietqr/generate', {
+            orderId: order._id,
+            amount: total,
+            customerName: shippingInfo.fullName
+          });
+          
+          if (qrResponse.data.success) {
+            setQrData(qrResponse.data.data);
+            setShowQrModal(true);
+            toast.success('Đã tạo mã QR thanh toán!');
+          }
+        } catch (qrError) {
+          console.error('QR generation error:', qrError);
+          toast.error('Không thể tạo mã QR. Vui lòng thử lại!');
+        }
+        setLoading(false);
+        return; // Don't navigate, show QR modal
       }
     } catch (error) {
       console.error('Place order error:', error);
@@ -472,6 +548,31 @@ const Checkout = () => {
                         <p className="text-sm text-luxury-brown font-light">Thanh toán qua cổng VNPay - Hỗ trợ thẻ ATM, Visa, MasterCard</p>
                       </div>
                     </label>
+
+                    { /* VietQR - Bank Transfer */ }
+                    <label className={`flex items-start gap-4 p-4 border-2 cursor-pointer transition-all ${paymentMethod === 'vietqr'
+                      ? 'border-luxury-charcoal bg-luxury-cream/30'
+                      : 'border-luxury-sand hover:border-luxury-taupe'
+                      }`}>
+                      <input
+                        type="radio"
+                        name="payment"
+                        value="vietqr"
+                        checked={paymentMethod === 'vietqr'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="mt-1 w-5 h-5 text-luxury-taupe"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">QR</span>
+                          </div>
+                          <span className="font-medium text-luxury-charcoal">Chuyển khoản ngân hàng (QR)</span>
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Phổ biến</span>
+                        </div>
+                        <p className="text-sm text-luxury-brown font-light">Quét mã QR bằng app ngân hàng - MB Bank, VCB, TCB, ACB...</p>
+                      </div>
+                    </label>
                   </div>
                 </div>
 
@@ -587,6 +688,45 @@ const Checkout = () => {
                     {shipping === 0 ? 'Miễn phí' : formatPrice(shipping)}
                   </span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-green-600">
+                    <span className="font-light">Giảm giá ({appliedCoupon.code})</span>
+                    <span className="font-light">-{formatPrice(discount)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Coupon Input */}
+              <div className="mb-6 pb-6 border-b border-luxury-beige">
+                <label className="block text-luxury-charcoal font-light mb-2 text-sm">Mã giảm giá</label>
+                {appliedCoupon ? (
+                  <div className="flex items-center gap-2 bg-green-50 border border-green-200 p-3 rounded">
+                    <span className="flex-1 text-green-700 font-medium">{appliedCoupon.code}</span>
+                    <button
+                      onClick={handleRemoveCoupon}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                    >
+                      ✕ Hủy
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      placeholder="Nhập mã"
+                      className="flex-1 border border-luxury-beige px-3 py-2 text-sm focus:outline-none focus:border-luxury-taupe uppercase"
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={couponLoading}
+                      className="bg-luxury-charcoal text-white px-4 py-2 text-sm hover:bg-luxury-brown transition-colors disabled:opacity-50"
+                    >
+                      {couponLoading ? '...' : 'Áp dụng'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-between text-xl mb-6">
@@ -597,6 +737,66 @@ const Checkout = () => {
           </div>
         </div>
       </div>
+
+      {/* VietQR Modal */}
+      {showQrModal && qrData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">Quét mã QR để thanh toán</h3>
+              <p className="text-gray-500 mb-6">Sử dụng app ngân hàng để quét</p>
+              
+              {/* QR Image */}
+              <div className="bg-white p-4 rounded-xl shadow-inner mb-6">
+                <img 
+                  src={qrData.qrUrl} 
+                  alt="VietQR Payment" 
+                  className="w-full max-w-[280px] mx-auto"
+                />
+              </div>
+              
+              {/* Bank Info */}
+              <div className="bg-gray-50 rounded-xl p-4 text-left mb-6">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <span className="text-gray-500">Ngân hàng:</span>
+                  <span className="font-medium">{qrData.bankInfo.bankName}</span>
+                  
+                  <span className="text-gray-500">Số TK:</span>
+                  <span className="font-medium">{qrData.bankInfo.accountNo}</span>
+                  
+                  <span className="text-gray-500">Chủ TK:</span>
+                  <span className="font-medium">{qrData.bankInfo.accountName}</span>
+                  
+                  <span className="text-gray-500">Số tiền:</span>
+                  <span className="font-bold text-green-600">{formatPrice(qrData.paymentInfo.amount)}</span>
+                  
+                  <span className="text-gray-500">Nội dung CK:</span>
+                  <span className="font-mono bg-yellow-100 px-2 rounded">{qrData.paymentInfo.transferContent}</span>
+                </div>
+              </div>
+              
+              <p className="text-xs text-gray-400 mb-4">
+                Sau khi chuyển khoản thành công, đơn hàng sẽ được xác nhận trong 5-10 phút
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowQrModal(false)}
+                  className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-50"
+                >
+                  Đóng
+                </button>
+                <button
+                  onClick={() => navigate('/account/orders')}
+                  className="flex-1 bg-luxury-charcoal text-white py-3 rounded-lg hover:bg-luxury-brown"
+                >
+                  Xem đơn hàng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
