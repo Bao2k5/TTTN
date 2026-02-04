@@ -1,5 +1,5 @@
 // src/controllers/vietqr.controller.js
-// Tích hợp VietQR + MoMo - Thanh toán chuyển khoản ngân hàng/Ví điện tử qua QR
+// Tích hợp VietQR - Thanh toán chuyển khoản ngân hàng qua QR
 
 /**
  * VietQR API Documentation: https://www.vietqr.io/
@@ -15,12 +15,6 @@ const BANK_CONFIG = {
   accountNo: '96247L34AD',  // Số VA từ SePay (liên kết với STK thật)
   accountName: 'LE DUONG BAO',
   template: 'compact2'
-};
-
-// Cấu hình MoMo
-const MOMO_CONFIG = {
-  phone: '0934142076',  // Số điện thoại MoMo
-  name: 'LE DUONG BAO'
 };
 
 // Danh sách mã ngân hàng VietQR
@@ -142,62 +136,6 @@ exports.verifyPayment = async (req, res) => {
   }
 };
 
-// ========== MOMO QR ==========
-
-// @desc    Generate MoMo QR code for payment
-// @route   POST /api/payment/vietqr/momo/generate
-exports.generateMoMoQR = async (req, res) => {
-  try {
-    const { orderId, amount } = req.body;
-    
-    if (!orderId || !amount) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Thiếu thông tin đơn hàng' 
-      });
-    }
-    
-    const transferContent = `HM${orderId}`.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    
-    // MoMo QR có thể dùng deeplink hoặc hình ảnh
-    // Deeplink format: momo://app?action=transfer&phone=<PHONE>&amount=<AMOUNT>&comment=<MESSAGE>
-    const momoDeeplink = `momo://app?action=transfer&phone=${MOMO_CONFIG.phone}&amount=${amount}&comment=${encodeURIComponent(transferContent)}`;
-    
-    // Sử dụng QR code generator API để tạo QR từ deeplink
-    // Hoặc dùng api.qrserver.com để tạo QR
-    const qrContent = `2|99|${MOMO_CONFIG.phone}|||0|0|${amount}|${transferContent}|transfer_p2p`;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrContent)}`;
-    
-    res.json({
-      success: true,
-      data: {
-        qrUrl,
-        momoInfo: {
-          phone: MOMO_CONFIG.phone,
-          name: MOMO_CONFIG.name
-        },
-        paymentInfo: {
-          amount,
-          transferContent,
-          orderId
-        },
-        deeplink: momoDeeplink,
-        instructions: [
-          '1. Mở ứng dụng MoMo',
-          '2. Chọn "Quét mã QR" hoặc "Chuyển tiền"',
-          `3. Số điện thoại: ${MOMO_CONFIG.phone}`,
-          `4. Số tiền: ${amount.toLocaleString('vi-VN')}đ`,
-          `5. Nội dung: ${transferContent}`,
-          '6. Xác nhận chuyển tiền'
-        ]
-      }
-    });
-  } catch (error) {
-    console.error('Generate MoMo QR error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi tạo thông tin MoMo' });
-  }
-};
-
 // @desc    Get all payment methods config
 // @route   GET /api/payment/config
 exports.getAllPaymentConfig = async (req, res) => {
@@ -210,10 +148,6 @@ exports.getAllPaymentConfig = async (req, res) => {
           bankName: BANK_CONFIG.bankName,
           accountNo: BANK_CONFIG.accountNo,
           accountName: BANK_CONFIG.accountName
-        },
-        momo: {
-          phone: MOMO_CONFIG.phone,
-          name: MOMO_CONFIG.name
         }
       }
     });

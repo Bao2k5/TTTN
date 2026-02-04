@@ -214,7 +214,7 @@ const Checkout = () => {
       return;
     }
 
-    const validPaymentMethods = ['cod', 'vnpay', 'vietqr', 'momo'];
+    const validPaymentMethods = ['cod', 'vnpay', 'vietqr'];
     if (!paymentMethod || !validPaymentMethods.includes(paymentMethod)) {
       toast.error('Vui lòng chọn phương thức thanh toán hợp lệ');
       setStep(2); // Go back to payment step
@@ -230,7 +230,7 @@ const Checkout = () => {
         email: shippingInfo.email,
         fullName: shippingInfo.fullName,
         note: shippingInfo.note || '',
-        paymentMethod: paymentMethod === 'vietqr' ? 'bank_transfer' : (paymentMethod === 'momo' ? 'momo' : paymentMethod),
+        paymentMethod: paymentMethod === 'vietqr' ? 'bank_transfer' : paymentMethod,
         couponCode: appliedCoupon?.code || null,
         discount: discount
       };
@@ -280,26 +280,6 @@ const Checkout = () => {
         }
         setLoading(false);
         return; // Don't navigate, show QR modal
-      } else if (paymentMethod === 'momo') {
-        // Generate MoMo QR
-        try {
-          const momoResponse = await api.post('/payment/vietqr/momo/generate', {
-            orderId: order._id,
-            amount: total,
-            customerName: shippingInfo.fullName
-          });
-          
-          if (momoResponse.data.success) {
-            setQrData({ ...momoResponse.data.data, type: 'momo' });
-            setShowQrModal(true);
-            toast.success('Đã tạo mã QR MoMo!');
-          }
-        } catch (momoError) {
-          console.error('MoMo QR generation error:', momoError);
-          toast.error('Không thể tạo mã QR MoMo. Vui lòng thử lại!');
-        }
-        setLoading(false);
-        return;
       }
     } catch (error) {
       console.error('Place order error:', error);
@@ -594,30 +574,6 @@ const Checkout = () => {
                       </div>
                     </label>
 
-                    { /* MoMo E-Wallet */ }
-                    <label className={`flex items-start gap-4 p-4 border-2 cursor-pointer transition-all ${paymentMethod === 'momo'
-                      ? 'border-luxury-charcoal bg-luxury-cream/30'
-                      : 'border-luxury-sand hover:border-luxury-taupe'
-                      }`}>
-                      <input
-                        type="radio"
-                        name="payment"
-                        value="momo"
-                        checked={paymentMethod === 'momo'}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="mt-1 w-5 h-5 text-luxury-taupe"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="w-6 h-6 bg-gradient-to-r from-pink-500 to-pink-600 rounded-full flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">M</span>
-                          </div>
-                          <span className="font-medium text-luxury-charcoal">Ví MoMo</span>
-                          <span className="text-xs bg-pink-100 text-pink-700 px-2 py-0.5 rounded">Phổ biến</span>
-                        </div>
-                        <p className="text-sm text-luxury-brown font-light">Thanh toán qua ví điện tử MoMo - Quét mã QR siêu nhanh</p>
-                      </div>
-                    </label>
                   </div>
                 </div>
 
@@ -789,72 +745,41 @@ const Checkout = () => {
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
             <div className="text-center">
               {/* Header with payment type indicator */}
-              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4 ${
-                qrData.type === 'momo' 
-                  ? 'bg-gradient-to-r from-pink-500 to-pink-600' 
-                  : 'bg-gradient-to-r from-green-600 to-green-800'
-              }`}>
-                <span className="text-white text-sm font-bold">
-                  {qrData.type === 'momo' ? 'Ví MoMo' : 'BIDV'}
-                </span>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4 bg-gradient-to-r from-green-600 to-green-800">
+                <span className="text-white text-sm font-bold">BIDV</span>
               </div>
               
               <h3 className="text-2xl font-bold text-gray-800 mb-2">Quét mã QR để thanh toán</h3>
-              <p className="text-gray-500 mb-6">
-                {qrData.type === 'momo' 
-                  ? 'Mở app MoMo và quét mã QR' 
-                  : 'Sử dụng app ngân hàng để quét'
-                }
-              </p>
+              <p className="text-gray-500 mb-6">Sử dụng app ngân hàng để quét</p>
               
               {/* QR Image */}
-              <div className={`p-4 rounded-xl shadow-inner mb-6 ${
-                qrData.type === 'momo' ? 'bg-pink-50' : 'bg-green-50'
-              }`}>
+              <div className="p-4 rounded-xl shadow-inner mb-6 bg-green-50">
                 <img 
                   src={qrData.qrUrl} 
-                  alt={qrData.type === 'momo' ? 'MoMo QR' : 'VietQR Payment'}
+                  alt="VietQR Payment"
                   className="w-full max-w-[280px] mx-auto rounded-lg"
                 />
               </div>
               
               {/* Payment Info */}
-              <div className={`rounded-xl p-4 text-left mb-6 ${
-                qrData.type === 'momo' ? 'bg-pink-50' : 'bg-gray-50'
-              }`}>
+              <div className="rounded-xl p-4 text-left mb-6 bg-gray-50">
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  {qrData.type === 'momo' ? (
-                    <>
-                      <span className="text-gray-500">Ví MoMo:</span>
-                      <span className="font-medium text-pink-600">{qrData.momoInfo?.phone}</span>
-                      
-                      <span className="text-gray-500">Chủ ví:</span>
-                      <span className="font-medium">{qrData.momoInfo?.name}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-gray-500">Ngân hàng:</span>
-                      <span className="font-medium">{qrData.bankInfo?.bankName}</span>
-                      
-                      <span className="text-gray-500">Số TK:</span>
-                      <span className="font-medium">{qrData.bankInfo?.accountNo}</span>
-                      
-                      <span className="text-gray-500">Chủ TK:</span>
-                      <span className="font-medium">{qrData.bankInfo?.accountName}</span>
-                    </>
-                  )}
+                  <span className="text-gray-500">Ngân hàng:</span>
+                  <span className="font-medium">{qrData.bankInfo?.bankName}</span>
+                  
+                  <span className="text-gray-500">Số TK:</span>
+                  <span className="font-medium">{qrData.bankInfo?.accountNo}</span>
+                  
+                  <span className="text-gray-500">Chủ TK:</span>
+                  <span className="font-medium">{qrData.bankInfo?.accountName}</span>
                   
                   <span className="text-gray-500">Số tiền:</span>
-                  <span className={`font-bold ${
-                    qrData.type === 'momo' ? 'text-pink-600' : 'text-green-600'
-                  }`}>
+                  <span className="font-bold text-green-600">
                     {formatPrice(qrData.paymentInfo?.amount)}
                   </span>
                   
                   <span className="text-gray-500">Nội dung CK:</span>
-                  <span className={`font-mono px-2 rounded ${
-                    qrData.type === 'momo' ? 'bg-pink-100' : 'bg-yellow-100'
-                  }`}>
+                  <span className="font-mono px-2 rounded bg-yellow-100">
                     {qrData.paymentInfo?.transferContent}
                   </span>
                 </div>
@@ -873,11 +798,7 @@ const Checkout = () => {
                 </button>
                 <button
                   onClick={() => navigate('/account/orders')}
-                  className={`flex-1 text-white py-3 rounded-lg ${
-                    qrData.type === 'momo' 
-                      ? 'bg-pink-500 hover:bg-pink-600' 
-                      : 'bg-luxury-charcoal hover:bg-luxury-brown'
-                  }`}
+                  className="flex-1 text-white py-3 rounded-lg bg-luxury-charcoal hover:bg-luxury-brown"
                 >
                   Xem đơn hàng
                 </button>
