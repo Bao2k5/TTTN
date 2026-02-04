@@ -14,7 +14,7 @@ function AdminCoupons() {
     const [formData, setFormData] = useState({
         code: '',
         description: '',
-        discountType: 'percentage', // percentage | fixed
+        discountType: 'percent', // percent | fixed
         discountValue: 0,
         minOrderAmount: 0,
         maxDiscountAmount: 0,
@@ -115,7 +115,7 @@ function AdminCoupons() {
         setFormData({
             code: '',
             description: '',
-            discountType: 'percentage',
+            discountType: 'percent',
             discountValue: 0,
             minOrderAmount: 0,
             maxDiscountAmount: 0,
@@ -174,14 +174,14 @@ function AdminCoupons() {
                                         onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
                                         className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-luxury-gold"
                                     >
-                                        <option value="percentage">Theo phần trăm (%)</option>
+                                        <option value="percent">Theo phần trăm (%)</option>
                                         <option value="fixed">Số tiền cố định (VND)</option>
                                     </select>
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium mb-1 text-gray-700">
-                                        Giá trị giảm {formData.discountType === 'percentage' ? '(%)' : '(VND)'} *
+                                        Giá trị giảm {formData.discountType === 'percent' ? '(%)' : '(VND)'} *
                                     </label>
                                     <input
                                         type="number"
@@ -193,7 +193,7 @@ function AdminCoupons() {
                                     />
                                 </div>
 
-                                {formData.discountType === 'percentage' && (
+                                {formData.discountType === 'percent' && (
                                     <div>
                                         <label className="block text-sm font-medium mb-1 text-gray-700">Giảm tối đa (VND)</label>
                                         <input
@@ -335,7 +335,7 @@ function AdminCoupons() {
                                                 )}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-luxury-charcoal">
-                                                {coupon.discountType === 'percentage'
+                                                {coupon.discountType === 'percent'
                                                     ? <span className="text-blue-600">Giảm {coupon.discountValue}%</span>
                                                     : <span className="text-green-600">Giảm {formatCurrency(coupon.discountValue)}</span>
                                                 }
