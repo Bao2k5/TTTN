@@ -58,9 +58,9 @@ const AdminSecurity = () => {
         setIsResetting(true);
         
         try {
-            console.log('🔴 Calling reset-alarm API...');
+            console.log('Calling reset-alarm API...');
             const response = await api.post('/security/reset-alarm');
-            console.log('✅ Reset response:', response.data);
+            console.log('Reset response:', response.data);
             
             // Tắt alarm ngay lập tức
             setAlarmActive(false);
@@ -81,7 +81,7 @@ const AdminSecurity = () => {
             setTimeout(() => setJustReset(false), 3000);
             
         } catch (error) {
-            console.error('❌ Reset error:', error);
+            console.error('Reset error:', error);
             toast.error("Lỗi khi tắt còi: " + (error.response?.data?.message || error.message));
         } finally {
             setIsResetting(false);
@@ -95,7 +95,7 @@ const AdminSecurity = () => {
         const socket = io(SOCKET_URL);
 
         socket.on('connect', () => {
-            console.log('✅ Connected to Security Socket');
+            console.log('Connected to Security Socket');
         });
 
         socket.on('new-alert', (newLog) => {
