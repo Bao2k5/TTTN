@@ -1,16 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { api } from '../../services/api'; // Ensure you have an axios instance or similar
+import { api } from '../../services/api'; 
+import { io } from 'socket.io-client';
+import { toast } from 'react-toastify';
+
+// Kết nối Socket.IO - Lấy base URL (bỏ /api ở cuối)
+const SOCKET_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000").replace('/api', '');
 
 const AdminSecurity = () => {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [alarmActive, setAlarmActive] = useState(false);
+    const [currentAlert, setCurrentAlert] = useState(null);
+    const audioRef = useRef(null);
 
     const fetchLogs = async () => {
         try {
-            const response = await api.get('/security/logs'); // Adjust endpoint if needed
+            const response = await api.get('/security/logs?limit=50');
             if (response.data.success) {
                 setLogs(response.data.data);
+                
+                // Check if any active danger persists
+                const activeDanger = response.data.data.find(l => 
+                    (l.type === 'DANGER' || l.type === 'WARNING') && l.status === 'active'
+                );
+                if (activeDanger) {
+                    triggerAlarm(activeDanger);
+                }
             }
         } catch (error) {
             console.error('Failed to fetch security logs:', error);
@@ -19,26 +35,122 @@ const AdminSecurity = () => {
         }
     };
 
+    const triggerAlarm = (alertData) => {
+        setAlarmActive(true);
+        setCurrentAlert(alertData);
+        if (audioRef.current) {
+            audioRef.current.loop = true;
+            audioRef.current.play().catch(e => console.log("Audio play failed:", e));
+        }
+    };
+
+    const stopAlarm = async () => {
+        try {
+            await api.post('/security/reset-alarm');
+            setAlarmActive(false);
+            setCurrentAlert(null);
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            }
+            toast.success("Đã tắt còi báo động!");
+            fetchLogs(); // Refresh status
+        } catch (error) {
+            toast.error("Lỗi khi tắt còi");
+        }
+    };
+
     useEffect(() => {
         fetchLogs();
-        // Auto-refresh every 5 seconds
-        const interval = setInterval(fetchLogs, 5000);
-        return () => clearInterval(interval);
+        
+        // Setup Socket
+        const socket = io(SOCKET_URL);
+
+        socket.on('connect', () => {
+            console.log('✅ Connected to Security Socket');
+        });
+
+        socket.on('new-alert', (newLog) => {
+            setLogs(prev => [newLog, ...prev]);
+            
+            if (newLog.type === 'DANGER' || newLog.type === 'WARNING') {
+                triggerAlarm(newLog);
+            }
+        });
+
+        socket.on('alarm-resolved', () => {
+            setAlarmActive(false);
+            setCurrentAlert(null);
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            }
+            toast.info("Cảnh báo đã được xử lý (Alert Resolved).");
+            fetchLogs();
+        });
+
+        return () => {
+            socket.disconnect();
+            if (audioRef.current) audioRef.current.pause();
+        };
     }, []);
 
     return (
         <AdminLayout>
+             {/* Âm thanh báo động (ẩn) */}
+             <audio ref={audioRef} src="/sounds/alarm.mp3" preload="auto" />
+
+            {/* ERROR OVERLAY */}
+            {alarmActive && currentAlert && (
+                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-red-600/90 text-white animate-pulse">
+                     <div className="text-9xl mb-4">🚨</div>
+                    <h1 className="text-6xl font-bold mb-4 uppercase">CẢNH BÁO XÂM NHẬP!</h1>
+                    <p className="text-2xl mb-8 uppercase tracking-widest">{currentAlert.message}</p>
+                    
+                    <div className="bg-white/10 p-6 rounded-lg backdrop-blur-sm mb-8 border border-white/30 text-center">
+                         <p className="text-xl">Phát hiện: <strong className="text-yellow-300 text-3xl">{currentAlert.title}</strong></p>
+                         <p className="text-lg mt-2">Thời gian: {new Date(currentAlert.timestamp).toLocaleTimeString()}</p>
+                    </div>
+
+                    <button 
+                        onClick={stopAlarm}
+                        className="bg-white text-red-600 px-12 py-6 rounded-full font-black text-2xl shadow-2xl hover:scale-105 transition-transform uppercase"
+                    >
+                        TẮT CÒI NGAY
+                    </button>
+                </div>
+            )}
+
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="font-display text-4xl text-luxury-black mb-2 tracking-wide">Security Monitor</h1>
-                    <p className="text-luxury-gray">Giám sát An ninh & Cảnh báo Xâm nhập</p>
+                    <p className="text-luxury-gray">Giám sát An ninh & Cảnh báo Xâm nhập (Real-time)</p>
                 </div>
-                <button
-                    onClick={fetchLogs}
-                    className="bg-luxury-black text-white px-4 py-2 rounded hover:bg-luxury-charcoal transition-colors"
-                >
-                    Làm mới
-                </button>
+                <div className="flex gap-3">
+                    {alarmActive ? (
+                         <button
+                            onClick={stopAlarm}
+                            className="bg-red-600 text-white px-6 py-2 rounded font-bold animate-bounce shadow-lg"
+                        >
+                            🚨 TẮT CÒI
+                        </button>
+                    ) : (
+                        <div className="flex items-center gap-2 text-green-600 bg-green-50 px-4 py-2 rounded border border-green-200">
+                             <span className="relative flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                            </span>
+                             System Safe
+                        </div>
+                    )}
+                   
+                    <button
+                        onClick={fetchLogs}
+                        className="bg-luxury-black text-white px-4 py-2 rounded hover:bg-luxury-charcoal transition-colors"
+                    >
+                        Làm mới
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white rounded-lg shadow-sm border border-luxury-platinum overflow-hidden">
@@ -51,22 +163,29 @@ const AdminSecurity = () => {
                         <thead className="bg-luxury-pearl border-b border-luxury-platinum">
                             <tr>
                                 <th className="p-4 font-medium text-luxury-black text-sm uppercase tracking-wider">Thời gian</th>
+                                <th className="p-4 font-medium text-luxury-black text-sm uppercase tracking-wider">Trạng thái</th>
                                 <th className="p-4 font-medium text-luxury-black text-sm uppercase tracking-wider">Loại</th>
                                 <th className="p-4 font-medium text-luxury-black text-sm uppercase tracking-wider">Tiêu đề</th>
                                 <th className="p-4 font-medium text-luxury-black text-sm uppercase tracking-wider">Nội dung</th>
                                 <th className="p-4 font-medium text-luxury-black text-sm uppercase tracking-wider">Đối tượng</th>
-                                <th className="p-4 font-medium text-luxury-black text-sm uppercase tracking-wider">Hình ảnh</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-luxury-platinum">
                             {logs.map((log) => (
-                                <tr key={log._id} className="hover:bg-luxury-cream/10 transition-colors">
+                                <tr key={log._id} className={`transition-colors ${log.status === 'active' && (log.type === 'DANGER' || log.type === 'WARNING') ? 'bg-red-50' : 'hover:bg-luxury-cream/10'}`}>
                                     <td className="p-4 text-luxury-gray text-sm">
                                         {new Date(log.timestamp).toLocaleString('vi-VN')}
                                     </td>
                                     <td className="p-4">
+                                        {log.status === 'active' ? (
+                                            <span className="text-red-600 font-bold text-xs uppercase border border-red-200 bg-red-50 px-2 py-1 rounded">Active</span>
+                                        ) : (
+                                            <span className="text-gray-500 text-xs uppercase border border-gray-200 bg-gray-50 px-2 py-1 rounded">Resolved</span>
+                                        )}
+                                    </td>
+                                    <td className="p-4">
                                         <span className={`px-2 py-1 rounded text-xs font-bold ${log.type === 'DANGER' ? 'bg-red-100 text-red-700' :
-                                                log.type === 'WARNING' ? 'bg-yellow-100 text-yellow-700' :
+                                                log.type === 'WARNING' ? 'bg-yellow-100 text-yellow-700 alert-blink' :
                                                     'bg-green-100 text-green-700'
                                             }`}>
                                             {log.type}
@@ -81,19 +200,21 @@ const AdminSecurity = () => {
                                             <span className="text-gray-500 italic">{log.detectedName}</span>
                                         )}
                                     </td>
-                                    <td className="p-4">
-                                        {log.imageUrl && (
-                                            <a href={log.imageUrl} target="_blank" rel="noopener noreferrer" className="text-luxury-brown underline text-xs">
-                                                Xem ảnh
-                                            </a>
-                                        )}
-                                    </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 )}
             </div>
+            
+            <style>{`
+                .alert-blink {
+                    animation: blinker 1s linear infinite;
+                }
+                @keyframes blinker {
+                    50% { opacity: 0.5; }
+                }
+            `}</style>
         </AdminLayout>
     );
 };

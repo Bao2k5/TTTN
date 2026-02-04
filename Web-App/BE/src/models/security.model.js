@@ -27,6 +27,11 @@ const securityLogSchema = new mongoose.Schema({
         type: String,
         default: 'Camera-01'
     },
+    status: {
+        type: String,
+        enum: ['active', 'resolved'],
+        default: 'active'
+    },
     timestamp: {
         type: Date,
         default: Date.now

@@ -1,22 +1,18 @@
 {
-  "name": "thuongmaidientu",
+  "name": "hm-jewelry-backend",
   "version": "1.0.0",
+  "description": "Backend API for HM Jewelry E-commerce & Smart Security System",
   "main": "server.js",
   "scripts": {
-    "test": "jest --runInBand",
-    "start": "node BE/server.js",
-    "dev": "nodemon BE/server.js",
-    "seed": "node scripts/seed.js",
-    "install:all": "npm install && cd FE && npm install",
-    "dev:all": "concurrently \"npm run dev\" \"cd FE && npm run dev\"",
-    "build:fe": "cd FE && npm run build"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
-    "axios": "^1.12.2",
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/lib-storage": "^3.0.0",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.1.0",
     "compression": "^1.8.1",
@@ -28,28 +24,17 @@
     "express-rate-limit": "^6.7.0",
     "express-session": "^1.18.2",
     "express-validator": "^7.0.1",
-    "form-data": "^4.0.4",
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.2",
     "multer": "^2.0.2",
-    "node-fetch": "^3.3.2",
     "nodemailer": "^6.10.1",
     "passport": "^0.7.0",
     "passport-facebook": "^3.0.0",
     "passport-google-oauth20": "^2.0.0",
-    "puppeteer": "^24.30.0",
     "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3",
     "stripe": "^12.9.0",
     "xss-clean": "^0.1.1"
-  },
-  "devDependencies": {
-    "concurrently": "^9.2.1",
-    "jest": "^29.6.1",
-    "mongodb-memory-server": "^8.12.1",
-    "nodemon": "^3.1.10",
-    "supertest": "^6.3.3"
   }
 }

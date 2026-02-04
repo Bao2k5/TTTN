@@ -47,15 +47,15 @@ try:
     try:
         mp_hands = mp.solutions.hands
         mp_drawing = mp.solutions.drawing_utils
-        MEDIAPIPE_AVAILABLE = True
+        HAS_MEDIAPIPE = True
     except AttributeError:
         # Fallback for some versions
         from mediapipe.python.solutions import hands as mp_hands
         from mediapipe.python.solutions import drawing_utils as mp_drawing
-        MEDIAPIPE_AVAILABLE = True
+        HAS_MEDIAPIPE = True
 except Exception as e:
     print(f"[WARNING] MediaPipe Hand Tracking disabled: {e}")
-    MEDIAPIPE_AVAILABLE = False
+    HAS_MEDIAPIPE = False
 
 # === MTCNN FOR HIGH-QUALITY REGISTRATION ===
 try:

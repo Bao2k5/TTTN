@@ -1,5 +1,6 @@
 // src/controllers/upload.controller.js
 const { uploadImage, deleteImage } = require('../utils/cloudinary');
+const { uploadToS3, deleteFromS3 } = require('../utils/s3'); // AWS S3 support
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -36,7 +37,7 @@ const localUpload = multer({
 });
 
 // Choose upload method based on configuration
-const upload = process.env.CLOUDINARY_CLOUD_NAME ?
+const upload = (process.env.CLOUDINARY_CLOUD_NAME || process.env.AWS_BUCKET_NAME) ?
   multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 },
@@ -58,9 +59,18 @@ exports.uploadImage = async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    // Check if Cloudinary is configured, otherwise use local storage
-    if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
-      // Upload to Cloudinary
+    // UTILS: Chọn Storage Service (Ưu tiên AWS S3 > Cloudinary > Local)
+    if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_BUCKET_NAME) {
+         // --- AWS S3 UPLOAD ---
+         const result = await uploadToS3(req.file.buffer, req.file.originalname, 'products');
+         res.json({
+            url: result.url,
+            public_id: result.public_id,
+            message: 'Image uploaded successfully to AWS S3'
+         });
+
+    } else if (process.env.CLOUDINARY_CLOUD_NAME) {
+      // --- CLOUDINARY UPLOAD ---
       const result = await uploadImage(req.file.buffer, 'products');
 
       res.json({
@@ -69,7 +79,7 @@ exports.uploadImage = async (req, res) => {
         message: 'Image uploaded successfully to Cloudinary'
       });
     } else {
-      // Use local storage
+      // --- LOCAL STORAGE ---
       const filename = req.file.filename;
       // Return full URL with backend domain
       const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
@@ -77,7 +87,7 @@ exports.uploadImage = async (req, res) => {
 
       res.json({
         url: url,
-        public_id: filename, // Use filename as public_id for local files
+        public_id: filename, 
         message: 'Image uploaded successfully to local storage'
       });
     }
@@ -92,9 +102,16 @@ exports.deleteImage = async (req, res) => {
     const { publicId } = req.body;
     if (!publicId) return res.status(400).json({ msg: 'publicId required' });
 
-    if (process.env.CLOUDINARY_CLOUD_NAME) {
+    if (process.env.AWS_BUCKET_NAME) {
+        // Delete from AWS S3
+        await deleteFromS3(publicId);
+        res.json({ msg: 'Deleted from AWS S3' });
+        
+    } else if (process.env.CLOUDINARY_CLOUD_NAME) {
       // Delete from Cloudinary
       await deleteImage(publicId);
+      res.json({ msg: 'Deleted from Cloudinary' });
+      
     } else {
       // Delete from local storage
       const filePath = path.join(__dirname, '../../uploads', publicId);
