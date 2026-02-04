@@ -56,3 +56,20 @@ exports.clearCart = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.removeItem = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    let cart = await Cart.findOne({ user: req.user.id });
+    if (!cart) return res.status(404).json({ msg: 'Cart not found' });
+
+    // Filter out the item
+    cart.items = cart.items.filter(item => item.product.toString() !== productId);
+
+    cart.updatedAt = Date.now();
+    await cart.save();
+    res.json(cart);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
