@@ -2,10 +2,6 @@
     "version": 2,
     "builds": [
         {
-            "src": "BE/server.js",
-            "use": "@vercel/node"
-        },
-        {
             "src": "FE/package.json",
             "use": "@vercel/static-build",
             "config": {
@@ -15,15 +11,11 @@
     ],
     "routes": [
         {
-            "src": "/api/(.*)",
-            "dest": "/BE/server.js"
-        },
-        {
             "handle": "filesystem"
         },
         {
             "src": "/(.*)",
-            "dest": "/index.html"
+            "dest": "/FE/index.html"
         }
     ]
 }

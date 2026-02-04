@@ -23,7 +23,7 @@ const AuthCallback = () => {
       localStorage.setItem('token', token);
       setToken(token);
 
-      api.get('/user/profile', {
+      api.get('/users/profile', {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then((response) => {
