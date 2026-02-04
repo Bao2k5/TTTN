@@ -145,7 +145,7 @@ exports.verifyPayment = async (req, res) => {
 // ========== MOMO QR ==========
 
 // @desc    Generate MoMo QR code for payment
-// @route   POST /api/payment/momo-qr/generate
+// @route   POST /api/payment/vietqr/momo/generate
 exports.generateMoMoQR = async (req, res) => {
   try {
     const { orderId, amount } = req.body;
@@ -163,9 +163,15 @@ exports.generateMoMoQR = async (req, res) => {
     // Deeplink format: momo://app?action=transfer&phone=<PHONE>&amount=<AMOUNT>&comment=<MESSAGE>
     const momoDeeplink = `momo://app?action=transfer&phone=${MOMO_CONFIG.phone}&amount=${amount}&comment=${encodeURIComponent(transferContent)}`;
     
+    // Sử dụng QR code generator API để tạo QR từ deeplink
+    // Hoặc dùng api.qrserver.com để tạo QR
+    const qrContent = `2|99|${MOMO_CONFIG.phone}|||0|0|${amount}|${transferContent}|transfer_p2p`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrContent)}`;
+    
     res.json({
       success: true,
       data: {
+        qrUrl,
         momoInfo: {
           phone: MOMO_CONFIG.phone,
           name: MOMO_CONFIG.name
@@ -178,9 +184,9 @@ exports.generateMoMoQR = async (req, res) => {
         deeplink: momoDeeplink,
         instructions: [
           '1. Mở ứng dụng MoMo',
-          '2. Chọn "Chuyển tiền" → "Đến số điện thoại"',
-          `3. Nhập số: ${MOMO_CONFIG.phone}`,
-          `4. Nhập số tiền: ${amount.toLocaleString('vi-VN')}đ`,
+          '2. Chọn "Quét mã QR" hoặc "Chuyển tiền"',
+          `3. Số điện thoại: ${MOMO_CONFIG.phone}`,
+          `4. Số tiền: ${amount.toLocaleString('vi-VN')}đ`,
           `5. Nội dung: ${transferContent}`,
           '6. Xác nhận chuyển tiền'
         ]
