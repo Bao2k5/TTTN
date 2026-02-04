@@ -43,6 +43,7 @@ import AdminProducts from './pages/admin/AdminProducts';
 import AdminCollections from './pages/admin/AdminCollections';
 import AdminHeroBanners from './pages/admin/AdminHeroBanners';
 import AdminOrders from './pages/admin/AdminOrders';
+import AdminCoupons from './pages/admin/AdminCoupons';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminSecurity from './pages/admin/AdminSecurity';
 
@@ -98,6 +99,7 @@ function App() {
         <Route path="/admin/collections" element={<AdminCollections />} />
         <Route path="/admin/hero-banners" element={<AdminHeroBanners />} />
         <Route path="/admin/orders" element={<AdminOrders />} />
+        <Route path="/admin/coupons" element={<AdminCoupons />} />
         <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="/admin/security" element={<AdminSecurity />} />
 
