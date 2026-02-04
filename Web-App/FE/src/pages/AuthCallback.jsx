@@ -6,7 +6,7 @@ import api from '../services/api';
 const AuthCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setUser, setToken } = useAuthStore();
+  const { updateUser, initialize } = useAuthStore();
 
   useEffect(() => {
     const token = searchParams.get('token');
@@ -19,19 +19,22 @@ const AuthCallback = () => {
     }
 
     if (token) {
-
       localStorage.setItem('token', token);
-      setToken(token);
 
-      api.get('/users/profile', {
+      // Khởi tạo lại auth store để nhận diện token mới
+      initialize();
+
+      // Lưu ý: Endpoint là /user/profile (số ít) không phải /users/profile
+      api.get('/user/profile', {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then((response) => {
-          setUser(response.data);
+          updateUser(response.data.user || response.data);
           alert('Đăng nhập thành công!');
           navigate('/');
         })
-        .catch(() => {
+        .catch((err) => {
+          console.error('Lỗi lấy profile:', err);
           alert('Không thể lấy thông tin người dùng!');
           navigate('/login');
         });
@@ -39,7 +42,7 @@ const AuthCallback = () => {
       alert('Không tìm thấy token!');
       navigate('/login');
     }
-  }, [searchParams, navigate, setUser, setToken]);
+  }, [searchParams, navigate, updateUser, initialize]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 to-purple-100">
