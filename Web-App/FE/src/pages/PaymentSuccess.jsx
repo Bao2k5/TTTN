@@ -1,49 +1,27 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import orderService from '../services/orderService';
-import paymentService from '../services/paymentService';
 
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('orderId');
   const method = searchParams.get('method');
-  const resultCode = searchParams.get('resultCode'); // MoMo
-  const vnpResponseCode = searchParams.get('vnp_ResponseCode'); // VNPay
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [verifying, setVerifying] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('success');
 
   useEffect(() => {
-    const verifyAndFetchOrder = async () => {
+    const fetchOrder = async () => {
       if (!orderId) {
         setLoading(false);
         return;
       }
 
       try {
-        // Nếu có resultCode từ URL (đã verify hoặc simulate), không cần verify lại
-        if (resultCode === '0' || resultCode === 0) {
-          // Đã thanh toán thành công, không cần verify lại
-          setPaymentStatus('success');
-        } else if (resultCode) {
-          // Có resultCode nhưng không phải 0, có thể là lỗi
-          setPaymentStatus('failed');
-        } else if (vnpResponseCode) {
-
-          setVerifying(true);
-          const verifyResult = await paymentService.queryVNPayPayment(orderId);
-          if (verifyResult.success && verifyResult.vnp_ResponseCode === '00') {
-            setPaymentStatus('success');
-          } else {
-            setPaymentStatus('failed');
-          }
-          setVerifying(false);
-        }
-
         const data = await orderService.getOrderById(orderId);
         setOrder(data);
+        setPaymentStatus('success');
       } catch (error) {
         console.error('Error:', error);
         setPaymentStatus('failed');
@@ -52,20 +30,20 @@ const PaymentSuccess = () => {
       }
     };
 
-    verifyAndFetchOrder();
-  }, [orderId, resultCode, vnpResponseCode]);
+    fetchOrder();
+  }, [orderId]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   };
 
-  if (loading || verifying) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-luxury-cream flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-luxury-gold mx-auto"></div>
           <p className="mt-4 text-luxury-charcoal">
-            {verifying ? 'Đang xác thực thanh toán...' : 'Đang tải thông tin đơn hàng...'}
+            Đang tải thông tin đơn hàng...
           </p>
         </div>
       </div>
