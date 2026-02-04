@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { formatDate, formatCurrency } from '../../utils/helpers';
-
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import api from '../../services/api';
 
 function AdminCoupons() {
     const [coupons, setCoupons] = useState([]);
@@ -33,18 +31,12 @@ function AdminCoupons() {
 
     const fetchCoupons = async () => {
         try {
-            const token = localStorage.getItem('token');
-            // Fix endpoint: /api/coupons (not /api/api/coupons if BACKEND_URL already has /api)
-            // Assuming VITE_API_URL ends with /api based on previous checks
-            const response = await axios.get(`${BACKEND_URL}/coupons`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
+            const response = await api.get('/coupons');
             const data = response.data?.data || response.data || [];
             setCoupons(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching coupons:', error);
-            toast.error('Lỗi tải danh sách mã giảm giá');
+            // toast.error('Lỗi tải danh sách mã giảm giá'); // Silent fail or user friendly
         } finally {
             setLoading(false);
         }
@@ -56,7 +48,6 @@ function AdminCoupons() {
 
         try {
             setSubmitting(true);
-            const token = localStorage.getItem('token');
 
             const payload = {
                 ...formData,
@@ -69,14 +60,10 @@ function AdminCoupons() {
             };
 
             if (editingCoupon) {
-                await axios.put(`${BACKEND_URL}/coupons/${editingCoupon._id}`, payload, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                await api.put(`/coupons/${editingCoupon._id}`, payload);
                 toast.success('Cập nhật mã giảm giá thành công');
             } else {
-                await axios.post(`${BACKEND_URL}/coupons`, payload, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                await api.post('/coupons', payload);
                 toast.success('Tạo mã giảm giá mới thành công');
             }
 
@@ -86,7 +73,8 @@ function AdminCoupons() {
             fetchCoupons();
         } catch (error) {
             console.error('Error saving coupon:', error);
-            toast.error(error.response?.data?.message || 'Lỗi khi lưu mã giảm giá');
+            const message = error.response?.data?.message || 'Lỗi khi lưu mã giảm giá';
+            toast.error(message);
         } finally {
             setSubmitting(false);
         }
@@ -114,10 +102,7 @@ function AdminCoupons() {
         if (!window.confirm('Bạn có chắc muốn xóa mã này?')) return;
 
         try {
-            const token = localStorage.getItem('token');
-            await axios.delete(`${BACKEND_URL}/coupons/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.delete(`/coupons/${id}`);
             toast.success('Đã xóa mã giảm giá');
             fetchCoupons();
         } catch (error) {
