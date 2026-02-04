@@ -36,21 +36,27 @@ exports.createOrder = async (req, res) => {
     console.log('[createOrder] Total:', total);
 
     const paymentMethod = req.body.paymentMethod || 'cod';
+    
+    // Tính discount nếu có coupon
+    const discount = req.body.discount || 0;
+    const finalTotal = total - discount;
 
     const order = await Order.create({
       user: req.user.id,
       items,
-      total,
+      total: finalTotal,
       address: req.body.address || req.body.shippingAddress || '',
       phone: req.body.phone || '',
       email: req.body.email || req.user.email || '',
       fullName: req.body.fullName || req.user.name || '',
       note: req.body.note || '',
+      couponCode: req.body.couponCode || null,
+      discount: discount,
       payment: {
         method: paymentMethod,
         status: 'pending',
         gateway: paymentMethod === 'cod' ? 'none' : paymentMethod,
-        amount: total,
+        amount: finalTotal,
         currency: 'VND'
       }
     });

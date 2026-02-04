@@ -14,6 +14,12 @@ const orderSchema = new mongoose.Schema(
     total: { type: Number, required: true },
     status: { type: String, enum: ["pending", "processing", "paid", "shipped", "completed", "cancelled"], default: "pending" },
     address: { type: String },
+    phone: { type: String },
+    email: { type: String },
+    fullName: { type: String },
+    note: { type: String },
+    couponCode: { type: String },
+    discount: { type: Number, default: 0 },
     shipping: {
       carrier: { type: String },
       trackingNumber: { type: String },
