@@ -40,9 +40,9 @@ const useAuthStore = create((set) => ({
 
       return response;
     } catch (error) {
-      set({ 
-        loading: false, 
-        error: error.response?.data?.message || 'Đăng nhập thất bại' 
+      set({
+        loading: false,
+        error: error.response?.data?.message || 'Đăng nhập thất bại'
       });
       console.error('Login error:', error);
       throw error;
@@ -75,9 +75,9 @@ const useAuthStore = create((set) => ({
 
       return response;
     } catch (error) {
-      set({ 
-        loading: false, 
-        error: error.response?.data?.message || 'Đăng ký thất bại' 
+      set({
+        loading: false,
+        error: error.response?.data?.message || 'Đăng ký thất bại'
       });
       console.error('Register error:', error);
       throw error;
@@ -100,6 +100,22 @@ const useAuthStore = create((set) => ({
 
   updateUser: (user) => {
     set({ user });
+  },
+
+  loginSuccess: (user, token) => {
+    try {
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      set({
+        user,
+        isAuthenticated: true,
+        isAdmin: user?.role === 'admin',
+        loading: false,
+        error: null,
+      });
+    } catch (err) {
+      console.error('Error saving auth state:', err);
+    }
   },
 }));
 
