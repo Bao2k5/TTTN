@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const couponController = require('../controllers/coupon.controller');
-const { protect, admin } = require('../middleware/auth');
+const { protect, admin } = require('../middleware/auth.middleware');
 
 // Public/User routes
 router.post('/apply', couponController.applyCoupon);
