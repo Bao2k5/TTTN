@@ -21,7 +21,7 @@ const AuthCallback = () => {
 
     if (token) {
       // Gọi API lấy thông tin user
-      api.get('/user/profile', {
+      api.get('/users/profile', {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then((response) => {
