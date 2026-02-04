@@ -8,11 +8,11 @@
 
 // ========== CẤU HÌNH THANH TOÁN ==========
 
-// Cấu hình BIDV
+// Cấu hình BIDV (dùng Virtual Account từ SePay)
 const BANK_CONFIG = {
   bankId: 'BIDV',
   bankName: 'BIDV',
-  accountNo: '0375225749',  // Số tài khoản BIDV
+  accountNo: '96247L34AD',  // Số VA từ SePay (liên kết với STK thật)
   accountName: 'LE DUONG BAO',
   template: 'compact2'
 };
