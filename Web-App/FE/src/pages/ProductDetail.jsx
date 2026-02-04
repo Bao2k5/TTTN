@@ -135,7 +135,13 @@ const ProductDetail = () => {
           name: p.name,
           price: p.price,
           priceSale: p.priceSale,
-          images: (p.images || []).map(i => (i.url || i)),
+          images: (p.images || []).map(i => {
+            let url = i.url || i;
+            if (url && typeof url === 'string' && url.startsWith('/') && !url.startsWith('http')) {
+              return (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace('/api', '') + url;
+            }
+            return url;
+          }),
           rating: p.ratingsAvg || 0,
           reviews: p.ratingsCount || 0,
           stock: p.stock,

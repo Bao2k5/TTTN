@@ -52,9 +52,17 @@ function AdminCoupons() {
             // Xử lý ngày giờ theo múi giờ địa phương để tránh lỗi lệch giờ
             const processDate = (dateStr, isEnd = false) => {
                 if (!dateStr) return undefined;
-                // Thêm giờ vào chuỗi ngày để ép trình duyệt hiểu là giờ địa phương
-                // VD: "2026-02-05" -> "2026-02-05T00:00:00" (Local) -> UTC
-                const timeStr = isEnd ? 'T23:59:59.999' : 'T00:00:00.000';
+
+                // Nếu là ngày bắt đầu, lùi lại 1 ngày để đảm bảo luôn có hiệu lực ngay lập tức
+                // Kể cả khi lệch múi giờ
+                if (!isEnd) {
+                    const date = new Date(dateStr);
+                    date.setDate(date.getDate() - 1);
+                    return date.toISOString();
+                }
+
+                // EndDate: Lấy cuối ngày
+                const timeStr = 'T23:59:59.999';
                 return new Date(dateStr + timeStr).toISOString();
             };
 

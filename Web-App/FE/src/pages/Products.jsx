@@ -99,18 +99,29 @@ const Products = () => {
         const res = await api.get('/products', { params });
         const data = res.data || {};
 
-        const fetched = (data.products || []).map(p => ({
-          id: p._id,
-          name: p.name,
-          price: p.price,
-          priceSale: p.priceSale,
-          images: (p.images || []).map(i => typeof i === 'string' ? i : (i.url || i)),
-          category: (p.category || (p.collection && p.collection.name) || '').toLowerCase() === 'vòng tay' ? 'Lắc Tay' : (p.category || (p.collection && p.collection.name) || ''),
-          style: p.style || '', // Ensure style is captured
-          material: p.attributes?.material || '',
-          rating: p.ratingsAvg || 0,
-          reviews: p.ratingsCount || 0
-        }));
+        const fetched = (data.products || []).map(p => {
+          const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace('/api', '');
+          const processImage = (img) => {
+            let url = typeof img === 'string' ? img : (img.url || img);
+            if (url && url.startsWith('/') && !url.startsWith('http')) {
+              return `${baseUrl}${url}`;
+            }
+            return url;
+          };
+
+          return {
+            id: p._id,
+            name: p.name,
+            price: p.price,
+            priceSale: p.priceSale,
+            images: (p.images || []).map(processImage),
+            category: (p.category || (p.collection && p.collection.name) || '').toLowerCase() === 'vòng tay' ? 'Lắc Tay' : (p.category || (p.collection && p.collection.name) || ''),
+            style: p.style || '',
+            material: p.attributes?.material || '',
+            rating: p.ratingsAvg || 0,
+            reviews: p.ratingsCount || 0
+          };
+        });
 
         setProducts(fetched);
         setTotal(data.total || fetched.length);
