@@ -23,8 +23,9 @@ from dotenv import load_dotenv
 # Load credentials from .env
 load_dotenv(dotenv_path="../.env")
 
-# API Configuration
-API_URL = "http://localhost:3000/api/security/log"
+# API Configuration - Dùng Cloud Backend (Render) hoặc localhost
+API_URL = os.getenv("BACKEND_URL", "https://hm-jewelry-api.onrender.com") + "/api/security/log"
+RESET_ALARM_URL = os.getenv("BACKEND_URL", "https://hm-jewelry-api.onrender.com") + "/api/security/reset-alarm"
 
 # ======================================================================================
 # DO AN TOT NGHIEP: HE THONG GIAM SAT THONG MINH (HYBRID EDGE-CLOUD AI) - v3.0
@@ -621,7 +622,7 @@ class FaceRecognitionApp:
     def reset_alarm(self, silent=False):
         """Tắt còi báo động bằng cách gọi API reset"""
         try:
-            response = requests.post("http://localhost:3000/api/security/reset-alarm")
+            response = requests.post(RESET_ALARM_URL)
             if response.status_code == 200:
                 if not silent:
                     messagebox.showinfo("Thành công", "Đã tắt còi báo động!")
