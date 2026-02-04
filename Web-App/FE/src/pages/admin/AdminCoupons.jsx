@@ -63,7 +63,9 @@ function AdminCoupons() {
                 discountValue: Number(formData.discountValue),
                 minOrderAmount: Number(formData.minOrderAmount),
                 maxDiscountAmount: Number(formData.maxDiscountAmount),
-                usageLimit: Number(formData.usageLimit)
+                usageLimit: Number(formData.usageLimit),
+                startDate: formData.startDate || undefined,
+                endDate: formData.endDate || undefined
             };
 
             if (editingCoupon) {
@@ -246,9 +248,10 @@ function AdminCoupons() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium mb-1 text-gray-700">Ngày kết thúc</label>
+                                        <label className="block text-sm font-medium mb-1 text-gray-700">Ngày kết thúc *</label>
                                         <input
                                             type="date"
+                                            required
                                             value={formData.endDate}
                                             onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                                             className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-luxury-gold"
