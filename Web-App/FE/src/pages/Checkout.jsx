@@ -43,6 +43,27 @@ const Checkout = () => {
   const [cartItems, setCartItems] = useState([]);
   const [loadingCart, setLoadingCart] = useState(true);
 
+  // Polling payment status
+  useEffect(() => {
+    let interval;
+    if (showQrModal && qrData?.paymentInfo?.orderId) {
+      interval = setInterval(async () => {
+        try {
+          const response = await api.get(`/payment/sepay/check/${qrData.paymentInfo.orderId}`);
+          if (response.data.success && response.data.data.paymentStatus === 'paid') {
+            clearInterval(interval);
+            toast.success('Thanh toán thành công!');
+            setShowQrModal(false);
+            navigate(`/payment/success?orderId=${qrData.paymentInfo.orderId}&method=vietqr`);
+          }
+        } catch (error) {
+          console.error('Error checking payment status:', error);
+        }
+      }, 5000); // Check every 5 seconds
+    }
+    return () => clearInterval(interval);
+  }, [showQrModal, qrData, navigate]);
+
   useEffect(() => {
     const loadCart = async () => {
       setLoadingCart(true);
@@ -129,14 +150,14 @@ const Checkout = () => {
       toast.error('Vui lòng nhập mã giảm giá');
       return;
     }
-    
+
     setCouponLoading(true);
     try {
-      const response = await api.post('/coupons/apply', { 
+      const response = await api.post('/coupons/apply', {
         code: couponCode.trim(),
         orderAmount: subtotal
       });
-      
+
       if (response.data.success) {
         setAppliedCoupon(response.data.data);
         toast.success(`Áp dụng mã giảm giá thành công! Giảm ${formatPrice(response.data.data.discountAmount)}`);
@@ -257,7 +278,7 @@ const Checkout = () => {
             amount: total,
             customerName: shippingInfo.fullName
           });
-          
+
           if (qrResponse.data.success) {
             setQrData({ ...qrResponse.data.data, type: 'bank' });
             setShowQrModal(true);
@@ -509,7 +530,7 @@ const Checkout = () => {
                       </div>
                     </label>
 
-                    { /* VietQR - BIDV Bank Transfer */ }
+                    { /* VietQR - BIDV Bank Transfer */}
                     <label className={`flex items-start gap-4 p-4 border-2 cursor-pointer transition-all ${paymentMethod === 'vietqr'
                       ? 'border-luxury-charcoal bg-luxury-cream/30'
                       : 'border-luxury-sand hover:border-luxury-taupe'
@@ -708,47 +729,47 @@ const Checkout = () => {
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4 bg-gradient-to-r from-green-600 to-green-800">
                 <span className="text-white text-sm font-bold">BIDV</span>
               </div>
-              
+
               <h3 className="text-2xl font-bold text-gray-800 mb-2">Quét mã QR để thanh toán</h3>
               <p className="text-gray-500 mb-6">Sử dụng app ngân hàng để quét</p>
-              
+
               {/* QR Image */}
               <div className="p-4 rounded-xl shadow-inner mb-6 bg-green-50">
-                <img 
-                  src={qrData.qrUrl} 
+                <img
+                  src={qrData.qrUrl}
                   alt="VietQR Payment"
                   className="w-full max-w-[280px] mx-auto rounded-lg"
                 />
               </div>
-              
+
               {/* Payment Info */}
               <div className="rounded-xl p-4 text-left mb-6 bg-gray-50">
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <span className="text-gray-500">Ngân hàng:</span>
                   <span className="font-medium">{qrData.bankInfo?.bankName}</span>
-                  
+
                   <span className="text-gray-500">Số TK:</span>
                   <span className="font-medium">{qrData.bankInfo?.accountNo}</span>
-                  
+
                   <span className="text-gray-500">Chủ TK:</span>
                   <span className="font-medium">{qrData.bankInfo?.accountName}</span>
-                  
+
                   <span className="text-gray-500">Số tiền:</span>
                   <span className="font-bold text-green-600">
                     {formatPrice(qrData.paymentInfo?.amount)}
                   </span>
-                  
+
                   <span className="text-gray-500">Nội dung CK:</span>
                   <span className="font-mono px-2 rounded bg-yellow-100">
                     {qrData.paymentInfo?.transferContent}
                   </span>
                 </div>
               </div>
-              
+
               <p className="text-xs text-gray-400 mb-4">
                 Sau khi thanh toán thành công, đơn hàng sẽ được xác nhận trong 5-10 phút
               </p>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowQrModal(false)}

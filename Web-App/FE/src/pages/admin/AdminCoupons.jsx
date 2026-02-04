@@ -49,14 +49,23 @@ function AdminCoupons() {
         try {
             setSubmitting(true);
 
+            // Xử lý ngày giờ theo múi giờ địa phương để tránh lỗi lệch giờ
+            const processDate = (dateStr, isEnd = false) => {
+                if (!dateStr) return undefined;
+                // Thêm giờ vào chuỗi ngày để ép trình duyệt hiểu là giờ địa phương
+                // VD: "2026-02-05" -> "2026-02-05T00:00:00" (Local) -> UTC
+                const timeStr = isEnd ? 'T23:59:59.999' : 'T00:00:00.000';
+                return new Date(dateStr + timeStr).toISOString();
+            };
+
             const payload = {
                 ...formData,
                 discountValue: Number(formData.discountValue),
                 minOrderAmount: Number(formData.minOrderAmount),
                 maxDiscountAmount: Number(formData.maxDiscountAmount),
                 usageLimit: Number(formData.usageLimit),
-                startDate: formData.startDate || undefined,
-                endDate: formData.endDate || undefined
+                startDate: processDate(formData.startDate),
+                endDate: processDate(formData.endDate, true) // EndDate phải là cuối ngày
             };
 
             if (editingCoupon) {
