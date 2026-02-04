@@ -163,8 +163,6 @@ const AdminSecurity = () => {
                     </div>
                 </div>
             )}
-                </div>
-            )}
 
             <div className="flex justify-between items-center mb-6">
                 <div>
