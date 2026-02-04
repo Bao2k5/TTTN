@@ -5,7 +5,6 @@ import useCartStore from '../store/cartStore';
 import useAuthStore from '../store/authStore';
 import cartService from '../services/cartService';
 import orderService from '../services/orderService';
-import paymentService from '../services/paymentService';
 import addressService from '../services/addressService';
 import { api } from '../services/api';
 
@@ -214,7 +213,7 @@ const Checkout = () => {
       return;
     }
 
-    const validPaymentMethods = ['cod', 'vnpay', 'vietqr'];
+    const validPaymentMethods = ['cod', 'vietqr'];
     if (!paymentMethod || !validPaymentMethods.includes(paymentMethod)) {
       toast.error('Vui lòng chọn phương thức thanh toán hợp lệ');
       setStep(2); // Go back to payment step
@@ -250,16 +249,6 @@ const Checkout = () => {
 
         toast.success('Đặt hàng thành công!');
         navigate(`/payment/success?orderId=${order._id}&method=cod`);
-      } else if (paymentMethod === 'vnpay') {
-
-        const vnpayResult = await paymentService.createVNPayPayment(order._id);
-        if (vnpayResult.success) {
-
-          // Redirect to real VNPay gateway
-          window.location.href = vnpayResult.payUrl;
-        } else {
-          throw new Error('Không thể tạo thanh toán VNPay');
-        }
       } else if (paymentMethod === 'vietqr') {
         // Generate VietQR (MB Bank)
         try {
@@ -517,35 +506,6 @@ const Checkout = () => {
                           <span className="font-medium text-luxury-charcoal">Thanh toán khi nhận hàng (COD)</span>
                         </div>
                         <p className="text-sm text-luxury-brown font-light">Thanh toán bằng tiền mặt khi nhận hàng</p>
-                      </div>
-                    </label>
-
-
-
-
-
-                    { }
-                    <label className={`flex items-start gap-4 p-4 border-2 cursor-pointer transition-all ${paymentMethod === 'vnpay'
-                      ? 'border-luxury-charcoal bg-luxury-cream/30'
-                      : 'border-luxury-sand hover:border-luxury-taupe'
-                      }`}>
-                      <input
-                        type="radio"
-                        name="payment"
-                        value="vnpay"
-                        checked={paymentMethod === 'vnpay'}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                        className="mt-1 w-5 h-5 text-luxury-taupe"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">VP</span>
-                          </div>
-                          <span className="font-medium text-luxury-charcoal">VNPay</span>
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">An toàn</span>
-                        </div>
-                        <p className="text-sm text-luxury-brown font-light">Thanh toán qua cổng VNPay - Hỗ trợ thẻ ATM, Visa, MasterCard</p>
                       </div>
                     </label>
 

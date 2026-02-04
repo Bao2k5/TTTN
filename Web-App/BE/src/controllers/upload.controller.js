@@ -1,9 +1,21 @@
 // src/controllers/upload.controller.js
 const { uploadImage, deleteImage } = require('../utils/cloudinary');
-const { uploadToS3, deleteFromS3 } = require('../utils/s3'); // AWS S3 support
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+
+// Lazy load S3 utilities only when needed
+let s3Utils = null;
+const getS3Utils = () => {
+  if (!s3Utils && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_BUCKET_NAME) {
+    try {
+      s3Utils = require('../utils/s3');
+    } catch (e) {
+      console.warn('AWS S3 SDK not installed, S3 upload disabled');
+    }
+  }
+  return s3Utils;
+};
 
 // Configure multer for local storage
 const localStorage = multer.diskStorage({
@@ -60,9 +72,10 @@ exports.uploadImage = async (req, res) => {
     }
 
     // UTILS: Chọn Storage Service (Ưu tiên AWS S3 > Cloudinary > Local)
-    if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_BUCKET_NAME) {
+    const s3 = getS3Utils();
+    if (s3 && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_BUCKET_NAME) {
          // --- AWS S3 UPLOAD ---
-         const result = await uploadToS3(req.file.buffer, req.file.originalname, 'products');
+         const result = await s3.uploadToS3(req.file.buffer, req.file.originalname, 'products');
          res.json({
             url: result.url,
             public_id: result.public_id,
@@ -102,9 +115,10 @@ exports.deleteImage = async (req, res) => {
     const { publicId } = req.body;
     if (!publicId) return res.status(400).json({ msg: 'publicId required' });
 
-    if (process.env.AWS_BUCKET_NAME) {
+    const s3Delete = getS3Utils();
+    if (s3Delete && process.env.AWS_BUCKET_NAME) {
         // Delete from AWS S3
-        await deleteFromS3(publicId);
+        await s3Delete.deleteFromS3(publicId);
         res.json({ msg: 'Deleted from AWS S3' });
         
     } else if (process.env.CLOUDINARY_CLOUD_NAME) {

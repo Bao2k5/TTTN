@@ -28,8 +28,6 @@ import AccountOrders from './pages/AccountOrders';
 import AccountSettings from './pages/AccountSettings';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
-import MomoSimulator from './pages/MomoSimulator';
-import VnpaySimulator from './pages/VnpaySimulator';
 import ResetPassword from './pages/ResetPassword';
 import ForgotPassword from './pages/ForgotPassword';
 import AuthCallback from './pages/AuthCallback';
@@ -209,26 +207,6 @@ function App() {
             <Header />
             <main className="flex-1 pt-32">
               <PaymentCancel />
-            </main>
-            <Footer />
-            <ZaloChat />
-          </>
-        } />
-        <Route path="/payment/momo/simulator" element={
-          <>
-            <Header />
-            <main className="flex-1 pt-32">
-              <MomoSimulator />
-            </main>
-            <Footer />
-            <ZaloChat />
-          </>
-        } />
-        <Route path="/payment/vnpay/simulator" element={
-          <>
-            <Header />
-            <main className="flex-1 pt-32">
-              <VnpaySimulator />
             </main>
             <Footer />
             <ZaloChat />

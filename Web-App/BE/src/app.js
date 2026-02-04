@@ -26,10 +26,6 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Stripe webhook needs raw body BEFORE express.json()
-const paymentController = require('./controllers/payment.controller');
-app.post('/api/orders/webhook', express.raw({ type: 'application/json' }), paymentController.webhook);
-
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
