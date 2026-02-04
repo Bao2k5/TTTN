@@ -17,6 +17,7 @@ const paymentRoutes = require('./payment.routes');
 const addressRoutes = require('./address.routes');
 const couponRoutes = require('./coupon.routes');
 const vietqrRoutes = require('./vietqr.routes');
+const sepayRoutes = require('./sepay.routes');
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
@@ -33,6 +34,7 @@ router.use('/payment', paymentRoutes);
 router.use('/address', addressRoutes);
 router.use('/coupons', couponRoutes);
 router.use('/payment/vietqr', vietqrRoutes);
+router.use('/payment/sepay', sepayRoutes);
 router.use('/contact', require('./contact.routes'));
 
 module.exports = router;
