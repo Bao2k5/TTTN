@@ -11,12 +11,15 @@ const hasFacebookCredentials = process.env.FACEBOOK_APP_ID && process.env.FACEBO
 
 // Google OAuth Strategy
 if (hasGoogleCredentials) {
+  const googleCallbackURL = `${process.env.BACKEND_URL}/api/auth/google/callback`;
+  console.log('🔐 Google OAuth callback URL:', googleCallbackURL);
+  
   passport.use(
     new GoogleStrategy(
       {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: `${process.env.BACKEND_URL}/api/auth/google/callback`,
+        callbackURL: googleCallbackURL,
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
