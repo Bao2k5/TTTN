@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { api } from '../../services/api'; 
 import { io } from 'socket.io-client';
-import { toast } from 'react-toastify';
+import toast from 'react-hot-toast';
 
 // Kết nối Socket.IO - Lấy base URL (bỏ /api ở cuối)
 const SOCKET_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000").replace('/api', '');
@@ -12,6 +12,7 @@ const AdminSecurity = () => {
     const [loading, setLoading] = useState(true);
     const [alarmActive, setAlarmActive] = useState(false);
     const [currentAlert, setCurrentAlert] = useState(null);
+    const [isResetting, setIsResetting] = useState(false);
     const audioRef = useRef(null);
 
     const fetchLogs = async () => {
@@ -44,9 +45,17 @@ const AdminSecurity = () => {
         }
     };
 
-    const stopAlarm = async () => {
+    const stopAlarm = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (isResetting) return; // Prevent double click
+        setIsResetting(true);
+        
         try {
-            await api.post('/security/reset-alarm');
+            const response = await api.post('/security/reset-alarm');
+            console.log('Reset response:', response.data);
+            
             setAlarmActive(false);
             setCurrentAlert(null);
             if (audioRef.current) {
@@ -56,7 +65,10 @@ const AdminSecurity = () => {
             toast.success("Đã tắt còi báo động!");
             fetchLogs(); // Refresh status
         } catch (error) {
-            toast.error("Lỗi khi tắt còi");
+            console.error('Reset error:', error);
+            toast.error("Lỗi khi tắt còi: " + (error.response?.data?.message || error.message));
+        } finally {
+            setIsResetting(false);
         }
     };
 
@@ -85,7 +97,7 @@ const AdminSecurity = () => {
                 audioRef.current.pause();
                 audioRef.current.currentTime = 0;
             }
-            toast.info("Cảnh báo đã được xử lý (Alert Resolved).");
+            toast.success("Cảnh báo đã được xử lý!");
             fetchLogs();
         });
 
@@ -100,24 +112,57 @@ const AdminSecurity = () => {
              {/* Âm thanh báo động (ẩn) */}
              <audio ref={audioRef} src="/sounds/alarm.mp3" preload="auto" />
 
-            {/* ERROR OVERLAY */}
+            {/* ALARM OVERLAY - Thiết kế chuyên nghiệp hơn */}
             {alarmActive && currentAlert && (
-                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-red-600/90 text-white animate-pulse">
-                     <div className="text-9xl mb-4">🚨</div>
-                    <h1 className="text-6xl font-bold mb-4 uppercase">CẢNH BÁO XÂM NHẬP!</h1>
-                    <p className="text-2xl mb-8 uppercase tracking-widest">{currentAlert.message}</p>
+                <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-br from-red-700 via-red-600 to-red-800 text-white">
+                    {/* Animated background effect */}
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.3)_100%)]"></div>
                     
-                    <div className="bg-white/10 p-6 rounded-lg backdrop-blur-sm mb-8 border border-white/30 text-center">
-                         <p className="text-xl">Phát hiện: <strong className="text-yellow-300 text-3xl">{currentAlert.title}</strong></p>
-                         <p className="text-lg mt-2">Thời gian: {new Date(currentAlert.timestamp).toLocaleTimeString()}</p>
-                    </div>
+                    {/* Pulsing rings */}
+                    <div className="absolute w-64 h-64 rounded-full border-4 border-white/30 animate-ping"></div>
+                    <div className="absolute w-48 h-48 rounded-full border-4 border-white/50 animate-pulse"></div>
+                    
+                    <div className="relative z-10 text-center px-8">
+                        {/* Icon */}
+                        <div className="text-8xl mb-6 animate-bounce">⚠️</div>
+                        
+                        {/* Title */}
+                        <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight">
+                            PHÁT HIỆN XÂM NHẬP
+                        </h1>
+                        
+                        {/* Alert Info Card */}
+                        <div className="bg-black/30 backdrop-blur-md p-6 rounded-2xl mb-8 max-w-md mx-auto border border-white/20">
+                            <p className="text-lg opacity-90 mb-2">Loại cảnh báo</p>
+                            <p className="text-2xl font-bold text-yellow-300 mb-4">{currentAlert.title}</p>
+                            <p className="text-sm opacity-75">{currentAlert.message}</p>
+                            <div className="mt-4 pt-4 border-t border-white/20">
+                                <p className="text-sm opacity-75">
+                                    🕐 {new Date(currentAlert.timestamp).toLocaleString('vi-VN')}
+                                </p>
+                            </div>
+                        </div>
 
-                    <button 
-                        onClick={stopAlarm}
-                        className="bg-white text-red-600 px-12 py-6 rounded-full font-black text-2xl shadow-2xl hover:scale-105 transition-transform uppercase"
-                    >
-                        TẮT CÒI NGAY
-                    </button>
+                        {/* Stop Button */}
+                        <button 
+                            onClick={stopAlarm}
+                            disabled={isResetting}
+                            className={`
+                                bg-white text-red-600 px-10 py-4 rounded-xl font-bold text-xl 
+                                shadow-[0_0_30px_rgba(255,255,255,0.5)] 
+                                hover:shadow-[0_0_50px_rgba(255,255,255,0.8)] 
+                                hover:scale-105 active:scale-95
+                                transition-all duration-200 
+                                ${isResetting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                            `}
+                        >
+                            {isResetting ? '⏳ Đang xử lý...' : '🔇 TẮT CẢNH BÁO'}
+                        </button>
+                        
+                        <p className="mt-4 text-sm opacity-60">Nhấn nút để xác nhận đã xử lý</p>
+                    </div>
+                </div>
+            )}
                 </div>
             )}
 
