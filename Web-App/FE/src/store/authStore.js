@@ -104,7 +104,8 @@ const useAuthStore = create((set) => ({
 
   loginSuccess: (user, token) => {
     try {
-      localStorage.setItem('token', token);
+      // Quan trọng: Phải stringify token vì helpers.js dùng JSON.parse để đọc
+      localStorage.setItem('token', JSON.stringify(token));
       localStorage.setItem('user', JSON.stringify(user));
       set({
         user,
