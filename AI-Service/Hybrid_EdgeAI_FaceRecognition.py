@@ -23,9 +23,12 @@ from dotenv import load_dotenv
 # Load credentials from .env
 load_dotenv(dotenv_path="../.env")
 
-# API Configuration - Dùng Cloud Backend (Render) hoặc localhost
-API_URL = os.getenv("BACKEND_URL", "https://hm-jewelry-api.onrender.com") + "/api/security/log"
-RESET_ALARM_URL = os.getenv("BACKEND_URL", "https://hm-jewelry-api.onrender.com") + "/api/security/reset-alarm"
+# API Configuration - Dùng Cloud Backend (Render) - HARDCODE để chắc chắn
+CLOUD_BACKEND = "https://hm-jewelry-api.onrender.com"
+API_URL = CLOUD_BACKEND + "/api/security/log"
+RESET_ALARM_URL = CLOUD_BACKEND + "/api/security/reset-alarm"
+
+print(f"[CONFIG] API_URL = {API_URL}")
 
 # ======================================================================================
 # DO AN TOT NGHIEP: HE THONG GIAM SAT THONG MINH (HYBRID EDGE-CLOUD AI) - v3.0
