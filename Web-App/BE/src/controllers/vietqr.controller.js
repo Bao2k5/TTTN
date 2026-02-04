@@ -8,11 +8,11 @@
 
 // ========== CẤU HÌNH THANH TOÁN ==========
 
-// Cấu hình MB Bank
+// Cấu hình BIDV
 const BANK_CONFIG = {
-  bankId: 'MB',
-  bankName: 'MB Bank',
-  accountNo: '0375225749',  // Số tài khoản MB Bank
+  bankId: 'BIDV',
+  bankName: 'BIDV',
+  accountNo: '0375225749',  // Số tài khoản BIDV
   accountName: 'LE DUONG BAO',
   template: 'compact2'
 };

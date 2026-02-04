@@ -569,7 +569,7 @@ const Checkout = () => {
                       </div>
                     </label>
 
-                    { /* VietQR - Bank Transfer */ }
+                    { /* VietQR - BIDV Bank Transfer */ }
                     <label className={`flex items-start gap-4 p-4 border-2 cursor-pointer transition-all ${paymentMethod === 'vietqr'
                       ? 'border-luxury-charcoal bg-luxury-cream/30'
                       : 'border-luxury-sand hover:border-luxury-taupe'
@@ -584,11 +584,11 @@ const Checkout = () => {
                       />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-blue-800 rounded flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">MB</span>
+                          <div className="w-6 h-6 bg-gradient-to-r from-green-600 to-green-800 rounded flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">B</span>
                           </div>
-                          <span className="font-medium text-luxury-charcoal">Chuyển khoản MB Bank (QR)</span>
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Nhanh chóng</span>
+                          <span className="font-medium text-luxury-charcoal">Chuyển khoản BIDV (QR)</span>
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Nhanh chóng</span>
                         </div>
                         <p className="text-sm text-luxury-brown font-light">Quét mã QR bằng app ngân hàng bất kỳ - Chuyển khoản 24/7</p>
                       </div>
@@ -792,10 +792,10 @@ const Checkout = () => {
               <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4 ${
                 qrData.type === 'momo' 
                   ? 'bg-gradient-to-r from-pink-500 to-pink-600' 
-                  : 'bg-gradient-to-r from-blue-600 to-blue-800'
+                  : 'bg-gradient-to-r from-green-600 to-green-800'
               }`}>
                 <span className="text-white text-sm font-bold">
-                  {qrData.type === 'momo' ? 'Ví MoMo' : 'MB Bank'}
+                  {qrData.type === 'momo' ? 'Ví MoMo' : 'BIDV'}
                 </span>
               </div>
               
@@ -809,7 +809,7 @@ const Checkout = () => {
               
               {/* QR Image */}
               <div className={`p-4 rounded-xl shadow-inner mb-6 ${
-                qrData.type === 'momo' ? 'bg-pink-50' : 'bg-blue-50'
+                qrData.type === 'momo' ? 'bg-pink-50' : 'bg-green-50'
               }`}>
                 <img 
                   src={qrData.qrUrl} 
