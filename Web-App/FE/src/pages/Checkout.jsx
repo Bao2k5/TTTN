@@ -284,11 +284,20 @@ const Checkout = () => {
             setShowQrModal(true);
             toast.success('Đã tạo mã QR chuyển khoản!');
           }
-        } catch (qrError) {
-          console.error('QR generation error:', qrError);
-          toast.error('Không thể tạo mã QR. Vui lòng thử lại!');
+        } catch (error) {
+          console.error('Place order error:', error);
+          const msg = error.response?.data?.msg || 'Không thể tạo mã QR. Vui lòng thử lại!';
+
+          if (error.response?.data?.error === 'CART_EMPTY' || msg.includes('Giỏ hàng trống')) {
+            toast.error('Giỏ hàng đã bị thay đổi hoặc đang trống. Vui lòng chọn lại sản phẩm.');
+            setCartItems([]); // Sync frontend with backend
+            setTimeout(() => navigate('/products'), 2000);
+          } else {
+            toast.error(msg);
+          }
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
         return; // Don't navigate, show QR modal
       }
     } catch (error) {
@@ -300,7 +309,14 @@ const Checkout = () => {
         || error.message
         || 'Đặt hàng thất bại. Vui lòng thử lại!';
 
-      toast.error(errorMessage);
+      // Handle Ghost Cart / Cart Empty Error
+      if (errorMessage.includes('CART_EMPTY') || errorMessage.includes('Giỏ hàng trống') || error.response?.data?.error === 'CART_EMPTY') {
+        toast.error('Giỏ hàng đã bị thay đổi hoặc đang trống. Vui lòng chọn lại sản phẩm (Tự động tải lại sau 2s).');
+        setCartItems([]);
+        setTimeout(() => navigate('/products'), 2000);
+      } else {
+        toast.error(errorMessage);
+      }
       setLoading(false);
     }
   };
