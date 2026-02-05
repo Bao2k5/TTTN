@@ -644,9 +644,10 @@ const Checkout = () => {
                   </button>
                   <button
                     onClick={handlePlaceOrder}
-                    className="flex-1 bg-luxury-charcoal text-white px-8 py-4 text-sm font-light tracking-wider hover:bg-luxury-brown transition-all duration-300"
+                    disabled={loading}
+                    className={`flex-1 bg-luxury-charcoal text-white px-8 py-4 text-sm font-light tracking-wider hover:bg-luxury-brown transition-all duration-300 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    ĐẶT HÀNG
+                    {loading ? 'ĐANG XỬ LÝ...' : 'ĐẶT HÀNG'}
                   </button>
                 </div>
               </div>
