@@ -41,6 +41,16 @@ exports.createOrder = async (req, res) => {
     const discount = req.body.discount || 0;
     const finalTotal = total - discount;
 
+    // Map payment method to gateway
+    let gateway = 'none';
+    if (paymentMethod === 'cod') {
+      gateway = 'none';
+    } else if (paymentMethod === 'bank_transfer' || paymentMethod === 'vietqr') {
+      gateway = 'vietqr';
+    } else {
+      gateway = paymentMethod;
+    }
+
     const order = await Order.create({
       user: req.user.id,
       items,
@@ -55,7 +65,7 @@ exports.createOrder = async (req, res) => {
       payment: {
         method: paymentMethod,
         status: 'pending',
-        gateway: paymentMethod === 'cod' ? 'none' : paymentMethod,
+        gateway: gateway,
         amount: finalTotal,
         currency: 'VND'
       }
