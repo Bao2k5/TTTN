@@ -34,5 +34,6 @@ router.use('/coupons', couponRoutes);
 router.use('/payment/vietqr', vietqrRoutes);
 router.use('/payment/sepay', sepayRoutes);
 router.use('/contact', require('./contact.routes'));
+router.use('/security', require('./security.routes'));
 
 module.exports = router;

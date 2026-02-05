@@ -1,11 +1,12 @@
 {
-  "name": "hm-jewelry-backend",
+  "name": "smart-jewelry-dashboard",
   "version": "1.0.0",
-  "description": "Backend API for HM Jewelry E-commerce & Smart Security System",
+  "description": "Hệ thống Giám sát An ninh & Quản lý Cửa hàng Trang sức",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "build": "echo 'Build skip: No compilation needed for vanilla JS'"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -36,5 +37,7 @@
     "socket.io": "^4.8.3",
     "stripe": "^12.9.0",
     "xss-clean": "^0.1.1"
-  }
+  },
+  "author": "Nhom sinh vien VAA",
+  "license": "ISC"
 }

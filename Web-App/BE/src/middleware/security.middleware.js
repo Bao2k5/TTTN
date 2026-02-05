@@ -20,7 +20,7 @@ const isDev = process.env.NODE_ENV !== 'production';
 // Basic API rate limiter
 const basicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isDev ? 1000 : 200, // 200 requests per 15 minutes in production
+  max: isDev ? 1000 : 2000, // TANG LEN 2000 request (thoai mai test)
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,

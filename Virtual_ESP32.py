@@ -1,13 +1,12 @@
-import requests
+﻿import requests
 import time
 import tkinter as tk
-from tkinter import font
 import threading
-import winsound  # Win only
+import winsound
 
-# CẤU HÌNH
-API_URL = "http://localhost:3000/api/security/alert-status"
-POLL_INTERVAL = 0.5  # Giây - Giam xuong 0.5s de phan hoi nhanh hon
+# CẤU HÌNHpython Virtual_ESP32.py
+API_URL = "https://hm-jewelry-api.onrender.com/api/security/alert-status"
+POLL_INTERVAL = 2.0
 
 class VirtualIoTDevice:
     def __init__(self, root):
@@ -19,67 +18,63 @@ class VirtualIoTDevice:
         self.is_alarm_active = False
         self.status = "SAFE"
         
-        # UI
         self.lbl_title = tk.Label(root, text="ESP32 SIMULATOR", font=("Arial", 16, "bold"), bg="#2c3e50", fg="white")
         self.lbl_title.pack(pady=20)
         
-        self.lbl_status = tk.Label(root, text="SYSTEM SAFE", font=("Arial", 24, "bold"), bg="#2c3e50", fg="#2ecc71")
+        self.lbl_status = tk.Label(root, text="CONNECTING...", font=("Arial", 24, "bold"), bg="#2c3e50", fg="#f39c12")
         self.lbl_status.pack(expand=True)
         
-        self.lbl_info = tk.Label(root, text="Status: Connected to Server", bg="#2c3e50", fg="#95a5a6")
+        self.lbl_info = tk.Label(root, text="Dang ket noi den Server...", bg="#2c3e50", fg="#95a5a6")
         self.lbl_info.pack(side=tk.BOTTOM, pady=10)
         
-        # Start Worker
         threading.Thread(target=self.poll_server, daemon=True).start()
         
     def poll_server(self):
+        first_connect = True
         while True:
             try:
-                # 1. Gọi API như ESP32 thật
-                response = requests.get(API_URL)
+                response = requests.get(API_URL, timeout=10)
                 if response.status_code == 200:
                     data = response.json()
-                    # Cấu trúc JSON trả về: { "status": "ALARM" } hoặc { "status": "SAFE" } giả định
-                    # Nhưng theo code Backend bạn gửi trước đó, API trả về trạng thái
-                    
-                    # Logic kiểm tra báo động từ Server
-                    # Backend trả về "shouldAlert": true/false
+                    if first_connect:
+                        first_connect = False
+                        self.root.after(0, lambda: self.lbl_info.config(text="Da ket noi thanh cong!"))
                     if data.get("shouldAlert") == True or data.get("status") == "ALARM":
                         self.trigger_alarm()
                     else:
                         self.stop_alarm()
                 else:
-                    self.lbl_info.config(text="Status: Server Error")
+                    self.root.after(0, lambda: self.lbl_info.config(text=f"Loi Server: {response.status_code}"))
+            except requests.exceptions.Timeout:
+                self.root.after(0, lambda: self.lbl_info.config(text="Timeout - Server cham"))
+            except requests.exceptions.ConnectionError:
+                self.root.after(0, lambda: self.lbl_info.config(text="Khong ket noi duoc Server"))
             except Exception as e:
-                self.lbl_info.config(text="Status: Disconnected")
-                # print(e)
-            
+                self.root.after(0, lambda: self.lbl_info.config(text=f"Loi: {str(e)[:30]}"))
             time.sleep(POLL_INTERVAL)
 
     def trigger_alarm(self):
         if self.status != "ALARM":
             self.status = "ALARM"
-            self.root.configure(bg="#c0392b") # Đỏ
+            self.root.configure(bg="#c0392b")
             self.lbl_title.configure(bg="#c0392b")
             self.lbl_status.configure(text="!!! INTRUSION !!!", bg="#c0392b", fg="white")
             self.lbl_info.configure(bg="#c0392b", text="ACTION: SIREN ON | LED BLINK")
-            # Hú còi (Win Sound)
             self.beep_loop()
 
     def stop_alarm(self):
         if self.status != "SAFE":
             self.status = "SAFE"
-            self.root.configure(bg="#2c3e50") # Xanh
+            self.root.configure(bg="#2c3e50")
             self.lbl_title.configure(bg="#2c3e50")
             self.lbl_status.configure(text="SYSTEM SAFE", bg="#2c3e50", fg="#2ecc71")
             self.lbl_info.configure(bg="#2c3e50", text="Status: Monitoring...")
 
     def beep_loop(self):
         def run():
-            # Kêu liên tục cho đến khi tắt alarm
             while self.status == "ALARM":
-                winsound.Beep(1000, 300)  # Tần số 1000Hz, 300ms
-                time.sleep(0.2)  # Nghỉ 200ms giữa các tiếng bíp
+                winsound.Beep(1000, 300)
+                time.sleep(0.2)
         threading.Thread(target=run, daemon=True).start()
 
 if __name__ == "__main__":

@@ -17,34 +17,30 @@ from bson.binary import Binary
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import LabelEncoder
 import joblib
-import mediapipe as mp # Thu vien bat ban tay
+import mediapipe as mp 
 from dotenv import load_dotenv
+
+import cloudinary
+import cloudinary.uploader
 
 # Load credentials from .env
 load_dotenv(dotenv_path="../.env")
 
-# API Configuration - Dùng Cloud Backend (Render) - HARDCODE để chắc chắn
+# Cloudinary Config
+cloudinary.config( 
+  cloud_name = "drqowqzr6", 
+  api_key = "197156983396473", 
+  api_secret = "v9wfVhbBoZAKVXxYJgRhKtqptWE"
+)
+
+
 CLOUD_BACKEND = "https://hm-jewelry-api.onrender.com"
 API_URL = CLOUD_BACKEND + "/api/security/log"
 RESET_ALARM_URL = CLOUD_BACKEND + "/api/security/reset-alarm"
 
 print(f"[CONFIG] API_URL = {API_URL}")
 
-# ======================================================================================
-# DO AN TOT NGHIEP: HE THONG GIAM SAT THONG MINH (HYBRID EDGE-CLOUD AI) - v3.0
-# ======================================================================================
-# 
-# TINH NANG MOI (v3.0): "VONG TRON BAO VE" (VIRTUAL FENCE) 🛡️
-# -----------------------------------------------------------
-# 1. FACE ID (YOLOv8 + FaceNet): Xac dinh danh tinh (Nhan vien / Nguoi la).
-# 2. HAND TRACKING (MediaPipe): Phat hien ban tay xam nhap vung cam (Tu kinh).
-# 3. SECURITY LOGIC (Dual-Condition):
-#    - Tinh huong 1: Tay cham tu + Co Nhan vien -> OK (Dang phuc vu khach).
-#    - Tinh huong 2: Tay cham tu + KHONG co Nhan vien -> BAO DONG (Hanh vi an trom).
-#
-# ======================================================================================
 
-# --- SAFE IMPORT MEDIAPIPE ---
 HAS_MEDIAPIPE = False
 try:
     import mediapipe as mp
@@ -513,7 +509,7 @@ class FaceRecognitionApp:
                 msg = "!!! CANH BAO: TROM CAP - XAM NHAP TU KINH !!!"
                 cv2.putText(frame, msg, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
                 print(f"[ALERT] Stranger intrusion detected!")
-                self.process_alert("DANGER", "Trom cap", "Phat hien nguoi la xam nhap vung trung bay!")
+                self.process_alert("DANGER", "Trom cap", "Phat hien nguoi la xam nhap vung trung bay!", frame)
             elif "Stranger" in current_faces:
                 # Chi CANH BAO (khong bao dong) khi chi thay nguoi la ben ngoai
                 msg = "CANH GIOI: Phat hien nguoi la"
@@ -602,14 +598,38 @@ class FaceRecognitionApp:
     def identify_face(self, face_crop):
         return self.get_embedding(face_crop)
 
-    def process_alert(self, type, title, message):
+    def process_alert(self, type, title, message, frame_for_upload=None):
         now = time.time()
-        if "ALERT" in self.last_log_time and (now - self.last_log_time["ALERT"]) < 2:  # Giam xuong 2 giay
+        if "ALERT" in self.last_log_time and (now - self.last_log_time["ALERT"]) < 10:  # Giam xuong 10 giay
             print(f"[DEBUG] Alert blocked by debounce (last: {now - self.last_log_time['ALERT']:.1f}s ago)")
             return
         self.last_log_time["ALERT"] = now
         
-        data = {"type": type, "title": title, "message": message, "detectedName": "INTRUDER"}
+        # Capture current frame for upload
+        try:
+            image_url = ""
+            if frame_for_upload is not None:
+                # Upload to Cloudinary
+                print("[UPLOAD] Uploading intruder image to Cloudinary...")
+                _, img_encoded = cv2.imencode('.jpg', frame_for_upload)
+                upload_result = cloudinary.uploader.upload(img_encoded.tobytes(), folder="security")
+                image_url = upload_result.get("secure_url")
+                print(f"[UPLOAD] Success: {image_url}")
+            elif not self.frame_queue.empty():
+                # Fallback to queue
+                frame = self.frame_queue.queue[-1] 
+                print("[UPLOAD] Fallback: Uploading from queue...")
+                _, img_encoded = cv2.imencode('.jpg', frame)
+                upload_result = cloudinary.uploader.upload(img_encoded.tobytes(), folder="security")
+                image_url = upload_result.get("secure_url")
+                print(f"[UPLOAD] Success: {image_url}")
+            else:
+                print("[UPLOAD] Warning: No frame available for upload!")
+        except Exception as e:
+            print(f"[UPLOAD] Failed: {e}")
+            image_url = "https://via.placeholder.com/640x480?text=Camera+Error"
+
+        data = {"type": type, "title": title, "message": message, "detectedName": "INTRUDER", "imageUrl": image_url}
         print(f"[ALERT] Sending to backend: {type} - {title}")
         threading.Thread(target=lambda: requests.post(API_URL, json=data)).start()
 
