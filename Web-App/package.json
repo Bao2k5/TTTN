@@ -52,4 +52,20 @@
     "nodemon": "^3.1.10",
     "supertest": "^6.3.3"
   }
+  {
+  "name": "smart-jewelry-dashboard",
+  "version": "1.0.0",
+  "description": "Hệ thống Giám sát An ninh & Quản lý Cửa hàng Trang sức",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "echo 'Build skip: No compilation needed for vanilla JS'"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.3",
+    "express": "^4.18.2"
+  },
+  "author": "Nhom sinh vien VAA",
+  "license": "ISC"
+} 
 }
