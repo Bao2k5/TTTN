@@ -61,6 +61,16 @@ app.use((req, res, next) => {
 // Connect to DB
 connectDB();
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    version: '2.2',
+    timestamp: new Date().toISOString(),
+    orderFields: ['phone', 'email', 'fullName', 'note', 'couponCode', 'discount']
+  });
+});
+
 // Mount routes
 const apiRouter = require('./routes/index');
 const securityRouter = require('./routes/security.routes');
