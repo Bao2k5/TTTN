@@ -64,11 +64,20 @@ const ProductCard = ({ product, onQuickView }) => {
           await cartService.addToCart(product._id || product.id, 1);
         } catch (err) {
           console.error('Error adding to server cart:', err);
-
+          const msg = err.response?.data?.error || err.response?.data?.message || 'Lỗi đồng bộ giỏ hàng';
+          // toast.error(`Lỗi: ${msg}`); // Optional: notify user or keep silent if persistent local cart is preferred
+          // But for debugging, we need to know.
+          // Re-throwing to be caught by outer catch? No, outer catch updates local cart.
+          // Let's alert the user but STILL update local cart? No, if server fails, local should probably not update to avoid desync.
+          // But currently it updates local anyway. 
+          // I will show a toast error so user knows server sync failed.
+          import('react-hot-toast').then(({ toast }) => toast.error(`Lỗi Server: ${msg}`));
         }
       }
 
-      await addToCart(productForCart, 1);
+      await addToCart(productForCart, 1);  // Always update local for optimistic UI. 
+      // BUT if server failed, this creates the desync ghost cart!
+      // Ideally we should ONLY update local if server succeeds (if user is logged in).
 
     } catch (error) {
       console.error('Add to cart error:', error);
@@ -140,8 +149,8 @@ const ProductCard = ({ product, onQuickView }) => {
         onClick={handleWishlistToggle}
         disabled={wishlistLoading}
         className={`absolute top-4 left-4 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${inWishlist
-            ? 'bg-red-500 text-white shadow-lg'
-            : 'bg-luxury-silverPearl/90 text-luxury-steelGrey hover:bg-luxury-metallicSilver hover:text-luxury-deepBlack'
+          ? 'bg-red-500 text-white shadow-lg'
+          : 'bg-luxury-silverPearl/90 text-luxury-steelGrey hover:bg-luxury-metallicSilver hover:text-luxury-deepBlack'
           } ${wishlistLoading ? 'opacity-50 cursor-not-allowed' : 'opacity-0 group-hover:opacity-100'}`}
         title={inWishlist ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
       >

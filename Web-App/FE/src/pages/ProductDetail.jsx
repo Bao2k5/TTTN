@@ -45,12 +45,14 @@ const ProductDetail = () => {
 
       addToCart(product, quantity);
 
-      alert(`Đã thêm ${quantity} ${product.name} vào giỏ hàng!`);
+      // We rely on Main Layout's Toaster
+      import('react-hot-toast').then(({ toast }) => toast.success(`Đã thêm ${quantity} ${product.name} vào giỏ hàng!`));
 
       setQuantity(1);
     } catch (error) {
       console.error('Error adding to cart:', error);
-      alert('Không thể thêm vào giỏ hàng. Vui lòng thử lại!');
+      const msg = error.response?.data?.message || error.response?.data?.error || 'Không thể thêm vào giỏ hàng';
+      import('react-hot-toast').then(({ toast }) => toast.error(msg));
     } finally {
       setAddingToCart(false);
     }
