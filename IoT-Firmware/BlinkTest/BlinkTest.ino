@@ -1,22 +1,17 @@
-/*
-  Blink Test for ESP32
-  Turns an LED on for one second, then off for one second, repeatedly.
-  Most ESP32 boards have a built-in LED on GPIO 2.
-*/
+#include <LiquidCrystal_I2C.h>
 
-#define LED_PIN 2 // Built-in LED on most ESP32 DevKits
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 void setup() {
-  pinMode(LED_PIN, OUTPUT);
   Serial.begin(115200);
-  Serial.println("ESP32 Blink Test Started!");
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Smart Jewelry");
+  lcd.setCursor(0, 1);
+  lcd.print("Vault - OK!");
+  Serial.println("LCD da hien thi!");
 }
 
 void loop() {
-  digitalWrite(LED_PIN, HIGH);  // Turn the LED on
-  Serial.println("LED ON");
-  delay(1000);                  // Wait for a second
-  digitalWrite(LED_PIN, LOW);   // Turn the LED off
-  Serial.println("LED OFF");
-  delay(1000);                  // Wait for a second
 }
