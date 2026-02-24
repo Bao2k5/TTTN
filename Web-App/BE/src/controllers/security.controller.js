@@ -53,23 +53,23 @@ exports.checkAlertStatus = async (req, res) => {
     try {
         // Tìm log WARNING/DANGER chưa được xử lý (active) trong 30s gần nhất
         // Hoặc cứ active là hú (nhân viên phải tắt thủ công) -> Chọn cách này an toàn hơn
-        
+
         // Tuy nhiên để tránh ESP32 hú mãi vì log cũ quên tắt, ta combine cả 2:
         // Active AND (trong 5 phút gần đây HOẶC vừa mới xảy ra)
-        
+
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
         const activeAlert = await SecurityLog.findOne({
             type: { $in: ['WARNING', 'DANGER'] },
             status: 'active',
-            timestamp: { $gte: fiveMinutesAgo } 
+            timestamp: { $gte: fiveMinutesAgo }
         }).sort({ timestamp: -1 });
 
         if (activeAlert) {
-            return res.json({ 
-                shouldAlert: true, 
-                message: "INTRUSION DETECTED", 
-                type: activeAlert.type 
+            return res.json({
+                shouldAlert: true,
+                message: "INTRUSION DETECTED",
+                type: activeAlert.type
             });
         }
 
@@ -93,19 +93,55 @@ exports.resetAlarm = async (req, res) => {
         );
 
         if (io) {
-            io.emit('alarm-resolved', { 
-                processedBy: 'Staff', 
-                timestamp: new Date() 
+            io.emit('alarm-resolved', {
+                processedBy: 'Staff',
+                timestamp: new Date()
             });
         }
 
-        res.json({ 
-            success: true, 
-            message: "Alarm reset successfully (Logs marked as resolved)", 
-            modifiedCount: result.modifiedCount 
+        res.json({
+            success: true,
+            message: "Alarm reset successfully (Logs marked as resolved)",
+            modifiedCount: result.modifiedCount
         });
     } catch (error) {
         console.error('Lỗi reset alarm:', error);
         res.status(500).json({ success: false, error: 'Server Error' });
     }
+};
+
+// Bien luu trang thai mo khoa (in-memory, reset khi server restart)
+let unlockState = { shouldUnlock: false, unlockAt: null };
+
+// @desc    ESP32 poll de kiem tra co mo khoa khong
+// @route   GET /api/security/unlock-status
+exports.checkUnlockStatus = async (req, res) => {
+    // Tu dong het han sau 10 giay
+    if (unlockState.shouldUnlock && unlockState.unlockAt) {
+        const elapsed = Date.now() - unlockState.unlockAt;
+        if (elapsed > 10000) {
+            unlockState.shouldUnlock = false;
+            unlockState.unlockAt = null;
+        }
+    }
+    res.json({ shouldUnlock: unlockState.shouldUnlock });
+};
+
+// @desc    AI/Web goi de mo khoa tu xa
+// @route   POST /api/security/trigger-unlock
+exports.triggerUnlock = async (req, res) => {
+    const io = req.app.get('socketio');
+    unlockState.shouldUnlock = true;
+    unlockState.unlockAt = Date.now();
+
+    // Tu dong khoa lai sau 10 giay
+    setTimeout(() => {
+        unlockState.shouldUnlock = false;
+        unlockState.unlockAt = null;
+        if (io) io.emit('door-locked', { timestamp: new Date() });
+    }, 10000);
+
+    if (io) io.emit('door-unlocked', { timestamp: new Date() });
+
+    res.json({ success: true, message: 'Unlock triggered - auto lock in 10s' });
 };

@@ -14,4 +14,10 @@ router.get('/alert-status', securityController.checkAlertStatus);
 // @route   POST /api/security/reset-alarm
 router.post('/reset-alarm', securityController.resetAlarm);
 
+// @route   GET /api/security/unlock-status
+router.get('/unlock-status', securityController.checkUnlockStatus);
+
+// @route   POST /api/security/trigger-unlock
+router.post('/trigger-unlock', securityController.triggerUnlock);
+
 module.exports = router;
