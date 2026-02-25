@@ -46,7 +46,7 @@ exports.askChatbot = async (req, res) => {
 
         // 3. Goi Gemini API
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const result = await model.generateContent([systemPrompt, question]);
+        const result = await model.generateContent(systemPrompt + "\n\nCâu hỏi: " + question);
         const responseText = result.response.text();
 
         res.json({ answer: responseText });
