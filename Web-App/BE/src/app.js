@@ -63,8 +63,8 @@ connectDB();
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     version: '2.2',
     timestamp: new Date().toISOString(),
     orderFields: ['phone', 'email', 'fullName', 'note', 'couponCode', 'discount']
@@ -74,9 +74,11 @@ app.get('/api/health', (req, res) => {
 // Mount routes
 const apiRouter = require('./routes/index');
 const securityRouter = require('./routes/security.routes');
+const chatbotRouter = require('./routes/chatbot.routes');
 
 app.use('/api', apiRouter);
 app.use('/api/security', securityRouter);
+app.use('/api/chatbot', chatbotRouter);
 
 
 // Serve static files from uploads directory

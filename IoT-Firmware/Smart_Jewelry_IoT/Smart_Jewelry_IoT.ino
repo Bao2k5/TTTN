@@ -1,15 +1,13 @@
 // =====================================================================
-// SMART JEWELRY VAULT - FIRMWARE HOAN CHINH
-// Tich hop: WiFi, API, LED x4, Buzzer, Servo, PIR, DHT11, Relay, LCD
+// SMART JEWELRY VAULT - FIRMWARE HOAN CHINH + BLYNK
+// Tich hop: WiFi, API, Blynk, LED x4, Buzzer, Servo, PIR, DHT11, Relay, LCD
 // =====================================================================
-// LOGIC HE THONG:
-// 1. Khoi dong -> LCD hien "Smart Jewelry" -> Ket noi WiFi (den vang nhay)
-// 2. WiFi OK -> Den xanh sang -> LCD hien nhiet do/do am + trang thai cua
-// 3. PIR phat hien chuyen dong -> Bat den trang (spotlight) cho camera
-// 4. API bao dong (shouldAlert=true) -> Coi hu + den do nhay + den trang bat
-// 5. API mo khoa (shouldUnlock=true) -> Servo quay 90do + Relay dong -> 5s -> Khoa lai
-// 6. Reed Switch -> Hien thi trang thai cua tren LCD
-// =====================================================================
+
+// --- BLYNK (PHAI DAT TRUOC MOI INCLUDE) ---
+#define BLYNK_TEMPLATE_ID "TMPL6fHFvtffq"
+#define BLYNK_TEMPLATE_NAME "Smart Jewelry Vault"
+#define BLYNK_AUTH_TOKEN "MRDp9rUCHgg2Pb3Vbyyn0mhnksrrd22h"
+#define BLYNK_PRINT Serial
 
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -17,6 +15,7 @@
 #include <ESP32Servo.h>
 #include <DHT.h>
 #include <LiquidCrystal_I2C.h>
+#include <BlynkSimpleEsp32.h>
 
 // --- WIFI ---
 const char *ssid = "Quan Le";
@@ -25,6 +24,7 @@ const char *password = "0386291654";
 // --- API ---
 String alertUrl = "https://hm-jewelry-api.onrender.com/api/security/alert-status";
 String unlockUrl = "https://hm-jewelry-api.onrender.com/api/security/unlock-status";
+String resetUrl = "https://hm-jewelry-api.onrender.com/api/security/reset-alarm";
 
 // --- CHAN CAM ---
 #define LED_RED    13
@@ -42,27 +42,92 @@ String unlockUrl = "https://hm-jewelry-api.onrender.com/api/security/unlock-stat
 DHT dht(DHT_PIN, DHT11);
 Servo lockServo;
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+BlynkTimer timer;
+TaskHandle_t AlarmTaskHandle = NULL;
 
 // --- TRANG THAI ---
 bool isAlarm = false;
 bool isDoorOpen = false;
 bool motionDetected = false;
+bool isUnlocking = false;
 bool buzzerState = false;
 unsigned long lastApiCall = 0;
-unsigned long lastDHTRead = 0;
 unsigned long lastBuzzerToggle = 0;
 unsigned long lastMotionTime = 0;
 
 // --- THOI GIAN ---
-#define API_INTERVAL   3000   // Poll API moi 3 giay
-#define DHT_INTERVAL   5000   // Doc nhiet do moi 5 giay
-#define BUZZER_SPEED   50     // Toc do nhay coi (ms)
-#define SPOTLIGHT_TIME 15000  // Den trang sang 15 giay sau khi phat hien chuyen dong
-#define UNLOCK_TIME    5000   // Khoa mo 5 giay
+#define API_INTERVAL   3000
+#define BUZZER_SPEED   50
+#define SPOTLIGHT_TIME 15000
+
+// ========== BLYNK: Nut MO KHOA tu dien thoai (V0) ==========
+BLYNK_WRITE(V0) {
+  int value = param.asInt();
+  if (value == 1 && !isUnlocking) {
+    Serial.println("[BLYNK] >> MO KHOA tu dien thoai!");
+    unlockDoor();
+    // Reset nut ve 0 sau khi mo
+    Blynk.virtualWrite(V0, 0);
+  }
+}
+
+// ========== BLYNK: Nut TAT COI tu dien thoai (V1) ==========
+BLYNK_WRITE(V1) {
+  int value = param.asInt();
+  if (value == 1) {
+    Serial.println("[BLYNK] >> DANG TAT COI VA RESET SERVER...");
+    
+    // 1. Goi API Reset Alarm tren Server
+    HTTPClient http;
+    http.begin(resetUrl);
+    int code = http.POST("{}"); // Gui body rong
+    if (code > 0) {
+      Serial.println("[API] Da reset bao dong tren Server!");
+    }
+    http.end();
+
+    // 2. Tat cuc bo tren ESP32
+    isAlarm = false;
+    buzzerState = false;
+    digitalWrite(BUZZER, LOW);
+    digitalWrite(LED_RED, LOW);
+    lcd.clear();
+    
+    // 3. Reset nut tren App ve 0
+    Blynk.virtualWrite(V1, 0);
+  }
+}
+
+// ========== GUI NHIET DO/DO AM LEN BLYNK MOI 5 GIAY ==========
+void sendSensorData() {
+  float temp = dht.readTemperature();
+  float humi = dht.readHumidity();
+  if (!isnan(temp) && !isnan(humi)) {
+    Serial.printf("[DHT] %.1fC | %.0f%%\n", temp, humi);
+    // Gui len Blynk
+    Blynk.virtualWrite(V2, temp);
+    Blynk.virtualWrite(V3, humi);
+    // Cap nhat LCD (chi khi khong bao dong)
+    if (!isAlarm) {
+      lcd.setCursor(0, 0);
+      lcd.print("T:");
+      lcd.print(temp, 1);
+      lcd.print("C H:");
+      lcd.print(humi, 0);
+      lcd.print("%   ");
+      lcd.setCursor(0, 1);
+      if (isDoorOpen) {
+        lcd.print("Cua: MO       ");
+      } else {
+        lcd.print("Cua: DONG  OK ");
+      }
+    }
+  }
+}
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("\n=== SMART JEWELRY VAULT ===");
+  Serial.println("\n=== SMART JEWELRY VAULT + BLYNK ===");
 
   // --- GPIO ---
   pinMode(LED_RED, OUTPUT);
@@ -99,44 +164,61 @@ void setup() {
   lcd.setCursor(0, 1);
   lcd.print("Dang ket noi...");
 
-  // --- WIFI ---
-  Serial.print("[WIFI] Connecting...");
-  WiFi.begin(ssid, password);
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 40) {
-    delay(500);
-    Serial.print(".");
-    digitalWrite(LED_YELLOW, !digitalRead(LED_YELLOW));
-    attempts++;
-  }
+  // --- BLYNK + WIFI (Blynk.begin tu dong ket noi WiFi) ---
+  Serial.println("[BLYNK] Connecting...");
+  digitalWrite(LED_YELLOW, HIGH);
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, password);
   digitalWrite(LED_YELLOW, LOW);
+  digitalWrite(LED_GREEN, HIGH);
 
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n[WIFI] Da ket noi!");
-    Serial.print("[WIFI] IP: ");
-    Serial.println(WiFi.localIP());
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("WiFi OK!");
-    lcd.setCursor(0, 1);
-    lcd.print(WiFi.localIP().toString());
-    digitalWrite(LED_GREEN, HIGH);
-    delay(2000);
-  } else {
-    Serial.println("\n[WIFI] KHONG THE KET NOI!");
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("WiFi THAT BAI!");
-    digitalWrite(LED_YELLOW, HIGH);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("WiFi + Blynk OK");
+  lcd.setCursor(0, 1);
+  lcd.print(WiFi.localIP().toString());
+  Serial.println("[BLYNK] Da ket noi!");
+  Serial.print("[WIFI] IP: ");
+  Serial.println(WiFi.localIP());
+  delay(2000);
+
+  // --- BLYNK TIMER: Gui nhiet do moi 5 giay ---
+  timer.setInterval(5000L, sendSensorData);
+
+  // --- FREERTOS: Create Alarm Task (Core 0) ---
+  xTaskCreatePinnedToCore(
+    alarmTask,
+    "AlarmTask",
+    2048,
+    NULL,
+    1,
+    &AlarmTaskHandle,
+    0
+  );
+}
+
+// ========== TASK RIENG CHO BAO DONG (CHAY SONG SONG) ==========
+void alarmTask(void * pvParameters) {
+  for(;;) {
+    if (isAlarm) {
+      buzzerState = !buzzerState;
+      digitalWrite(BUZZER, buzzerState);
+      digitalWrite(LED_RED, buzzerState);
+      vTaskDelay(BUZZER_SPEED / portTICK_PERIOD_MS);
+    } else {
+      digitalWrite(BUZZER, LOW);
+      digitalWrite(LED_RED, LOW);
+      vTaskDelay(100 / portTICK_PERIOD_MS); // Cho 100ms roi check lai
+    }
   }
 }
 
 void loop() {
+  Blynk.run();
+  timer.run();
+
   unsigned long now = millis();
 
   // ========== 1. DOC CAM BIEN ==========
-
-  // Reed Switch: Trang thai cua
   isDoorOpen = (digitalRead(REED_PIN) == HIGH);
 
   // PIR: Phat hien chuyen dong
@@ -147,7 +229,6 @@ void loop() {
       Serial.println("[PIR] Phat hien chuyen dong!");
     }
   }
-  // Tat spotlight sau 15 giay khong co chuyen dong
   if (motionDetected && (now - lastMotionTime > SPOTLIGHT_TIME)) {
     motionDetected = false;
   }
@@ -159,7 +240,6 @@ void loop() {
       checkAlertStatus();
       checkUnlockStatus();
     } else {
-      // Thu ket noi lai
       Serial.println("[WIFI] Mat ket noi, thu lai...");
       WiFi.begin(ssid, password);
       digitalWrite(LED_GREEN, LOW);
@@ -167,65 +247,24 @@ void loop() {
     }
   }
 
-  // ========== 3. XU LY BAO DONG ==========
+  // ========== 3. XU LY BAO DONG (Logic hien thi) ==========
   if (isAlarm) {
-    // --- CHE DO BAO DONG ---
     digitalWrite(LED_GREEN, LOW);
-    digitalWrite(LED_WHITE, HIGH); // Bat spotlight
-    // Nhay coi + den do
-    if (now - lastBuzzerToggle >= BUZZER_SPEED) {
-      lastBuzzerToggle = now;
-      buzzerState = !buzzerState;
-      digitalWrite(BUZZER, buzzerState);
-      digitalWrite(LED_RED, buzzerState);
-    }
+    digitalWrite(LED_WHITE, HIGH);
     // LCD hien canh bao
     lcd.setCursor(0, 0);
     lcd.print("!! CANH BAO !! ");
     lcd.setCursor(0, 1);
     lcd.print("XAM NHAP!      ");
   } else {
-    // --- CHE DO AN TOAN ---
-    if (buzzerState) {
-      buzzerState = false;
-      digitalWrite(BUZZER, LOW);
-      digitalWrite(LED_RED, LOW);
-    }
     if (WiFi.status() == WL_CONNECTED) {
       digitalWrite(LED_GREEN, HIGH);
       digitalWrite(LED_YELLOW, LOW);
     }
-
-    // Spotlight theo PIR (chi khi khong bao dong)
     if (motionDetected) {
       digitalWrite(LED_WHITE, HIGH);
     } else {
       digitalWrite(LED_WHITE, LOW);
-    }
-  }
-
-  // ========== 4. DOC NHIET DO MOI 5 GIAY ==========
-  if (now - lastDHTRead >= DHT_INTERVAL) {
-    lastDHTRead = now;
-    float temp = dht.readTemperature();
-    float humi = dht.readHumidity();
-    if (!isnan(temp) && !isnan(humi)) {
-      Serial.printf("[DHT] %.1fC | %.0f%%\n", temp, humi);
-      // Cap nhat LCD (chi khi khong bao dong)
-      if (!isAlarm) {
-        lcd.setCursor(0, 0);
-        lcd.print("T:");
-        lcd.print(temp, 1);
-        lcd.print("C H:");
-        lcd.print(humi, 0);
-        lcd.print("%   ");
-        lcd.setCursor(0, 1);
-        if (isDoorOpen) {
-          lcd.print("Cua: MO       ");
-        } else {
-          lcd.print("Cua: DONG  OK ");
-        }
-      }
     }
   }
 }
@@ -264,7 +303,7 @@ void checkUnlockStatus() {
     StaticJsonDocument<200> doc;
     deserializeJson(doc, payload);
     bool shouldUnlock = doc["shouldUnlock"] == true;
-    if (shouldUnlock) {
+    if (shouldUnlock && !isUnlocking) {
       unlockDoor();
     }
   }
@@ -273,6 +312,8 @@ void checkUnlockStatus() {
 
 // ========== HAM MO KHOA ==========
 void unlockDoor() {
+  if (isUnlocking) return;
+  isUnlocking = true;
   Serial.println("[LOCK] >> MO KHOA!");
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -280,17 +321,14 @@ void unlockDoor() {
   lcd.setCursor(0, 1);
   lcd.print("Mo khoa 5 giay");
 
-  // Mo servo + relay
   lockServo.attach(SERVO_PIN);
   lockServo.write(90);
   digitalWrite(RELAY_PIN, HIGH);
   digitalWrite(LED_GREEN, LOW);
-  // Nhay den xanh bao hieu
   for (int i = 0; i < 10; i++) {
     digitalWrite(LED_GREEN, !digitalRead(LED_GREEN));
     delay(500);
   }
-  // Dong lai
   lockServo.write(0);
   digitalWrite(RELAY_PIN, LOW);
   delay(500);
@@ -298,4 +336,5 @@ void unlockDoor() {
   Serial.println("[LOCK] >> DA DONG KHOA");
   digitalWrite(LED_GREEN, HIGH);
   lcd.clear();
+  isUnlocking = false;
 }

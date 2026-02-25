@@ -5,6 +5,7 @@ import useAuthStore from './store/authStore';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import ZaloChat from './components/common/ZaloChat';
+import ChatBot from './components/common/ChatBot';
 import ScrollToTop from './components/common/ScrollToTop';
 import HomeSimple from './pages/HomeSimple';
 import Products from './pages/Products';
@@ -330,6 +331,7 @@ function App() {
           </>
         } />
       </Routes>
+      <ChatBot />
     </div>
   );
 }
