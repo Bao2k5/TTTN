@@ -28,7 +28,7 @@ const ChatBot = () => {
         setIsLoading(true);
 
         try {
-            const apiRes = await axios.post('/api/chatbot/ask', { question: userMessage });
+            const apiRes = await api.post('/chatbot/ask', { question: userMessage });
             setMessages(prev => [...prev, { text: apiRes.data.answer, isBot: true }]);
         } catch (error) {
             console.error("Chatbot error:", error);
@@ -70,8 +70,8 @@ const ChatBot = () => {
                         {messages.map((msg, idx) => (
                             <div key={idx} className={`flex ${msg.isBot ? 'justify-start' : 'justify-end'}`}>
                                 <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${msg.isBot
-                                        ? 'bg-white text-gray-800 shadow-sm'
-                                        : 'bg-luxury-brown text-white shadow-md'
+                                    ? 'bg-white text-gray-800 shadow-sm'
+                                    : 'bg-luxury-brown text-white shadow-md'
                                     }`}>
                                     {msg.text}
                                 </div>
