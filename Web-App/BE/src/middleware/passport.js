@@ -12,8 +12,8 @@ const hasFacebookCredentials = process.env.FACEBOOK_APP_ID && process.env.FACEBO
 // Google OAuth Strategy
 if (hasGoogleCredentials) {
   const googleCallbackURL = `${process.env.BACKEND_URL}/api/auth/google/callback`;
-  console.log('🔐 Google OAuth callback URL:', googleCallbackURL);
-  
+  console.log('Google OAuth callback URL:', googleCallbackURL);
+
   passport.use(
     new GoogleStrategy(
       {
@@ -49,7 +49,7 @@ if (hasGoogleCredentials) {
     )
   );
 } else {
-  console.warn('⚠️  Google OAuth not configured - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
+  console.warn('Google OAuth not configured - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
 }
 
 // Facebook OAuth Strategy
@@ -92,7 +92,7 @@ if (hasFacebookCredentials) {
     )
   );
 } else {
-  console.warn('⚠️  Facebook OAuth not configured - missing FACEBOOK_APP_ID or FACEBOOK_APP_SECRET');
+  console.warn('Facebook OAuth not configured - missing FACEBOOK_APP_ID or FACEBOOK_APP_SECRET');
 }
 
 passport.serializeUser((user, done) => {

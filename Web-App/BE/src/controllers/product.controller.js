@@ -57,19 +57,19 @@ exports.getProductBySlug = async (req, res) => {
 
 exports.createProduct = async (req, res) => {
   try {
-    console.log('🔍 [CREATE PRODUCT] Request body:', JSON.stringify(req.body, null, 2));
+    console.log('[CREATE PRODUCT] Request body:', JSON.stringify(req.body, null, 2));
     const body = req.body;
     // Tự động tạo slug nếu không có (để URL đẹp hơn)
     if (!body.slug && body.name) {
       body.slug = slugify(body.name);
-      console.log(`🔗 Generated slug: "${body.slug}"`);
+      console.log(`Generated slug: "${body.slug}"`);
     }
-    console.log('💾 Creating product with data:', JSON.stringify(body, null, 2));
+    console.log('Creating product with data:', JSON.stringify(body, null, 2));
     const newP = await Product.create(body);
-    console.log('✅ Product created successfully:', newP._id);
+    console.log('[OK] Product created successfully:', newP._id);
     res.status(201).json(newP);
   } catch (err) {
-    console.error('❌ [CREATE PRODUCT ERROR]:', err);
+    console.error('[CREATE PRODUCT ERROR]:', err);
     console.error('Error name:', err.name);
     console.error('Error message:', err.message);
     if (err.code) console.error('Error code:', err.code);

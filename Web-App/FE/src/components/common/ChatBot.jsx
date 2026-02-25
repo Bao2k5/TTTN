@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { FaRobot, FaPaperPlane, FaTimes, FaMinus } from 'react-icons/fa';
 
 const ChatBot = () => {
