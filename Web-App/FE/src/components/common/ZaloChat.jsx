@@ -9,11 +9,10 @@ const ZaloChat = () => {
 				className="group flex items-center justify-center w-14 h-14 bg-luxury-taupe hover:bg-luxury-brown rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
 				aria-label="Chat qua Zalo"
 			>
-				<svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 48 48">
-					<path d="M24 4C13.5 4 5 11.9 5 21.7c0 6.1 3.4 11.5 8.5 14.8l-2.7 8.1 8.3-4.3c1.6.4 3.3.6 5 .6 10.5 0 19-7.9 19-17.7S34.5 4 24 4zm0 32c-1.6 0-3.1-.2-4.5-.6l-5.4 2.8 1.8-5.3C12.3 30.4 10 26.3 10 21.7 10 14.6 16.3 9 24 9s14 5.6 14 12.7-6.3 14.3-14 14.3z"/>
-					<path d="M29.5 24.5h-4v-4c0-.8-.7-1.5-1.5-1.5s-1.5.7-1.5 1.5v4h-4c-.8 0-1.5.7-1.5 1.5s.7 1.5 1.5 1.5h4v4c0 .8.7 1.5 1.5 1.5s1.5-.7 1.5-1.5v-4h4c.8 0 1.5-.7 1.5-1.5s-.7-1.5-1.5-1.5z"/>
+				<svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor shadow-sm">
+					<path d="M21.011 12.002c0-4.665-3.83-8.448-8.555-8.448-4.724 0-8.555 3.783-8.555 8.448 0 4.14 2.972 7.601 6.946 8.324l-1.076 2.053c-.114.218.043.473.284.473h.001a.332.332 0 00.283-.173l1.838-3.5h.279c4.724.001 8.555-3.782 8.555-8.477zM11.69 11h-3.41c-.266 0-.39-.175-.39-.517 0-.34.124-.516.39-.516h4.524c.22 0 .343.146.343.438v.922c0 .285-.098.397-.293.336L9.623 15h3.408c.267 0 .392.175.392.517 0 .34-.125.517-.392.517H8.51c-.22 0-.342-.146-.342-.438v-.921c0-.285.093-.396.289-.336L11.69 11zM16.5 15.1c0 .546-.356.9-.9.9h-1.2c-.544 0-.9-.356-.9-.9v-3.2c0-.544.356-.9.9-.9h1.2c.544 0 .9.356.9.9v3.2zM15.5 15v-3h-1v3h1z" />
 				</svg>
-				{}
+				{ }
 				<span className="absolute right-full mr-3 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
 					Chat với chúng tôi qua Zalo
 				</span>
