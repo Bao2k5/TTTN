@@ -1,4 +1,7 @@
-const SecurityLog = require('../models/security.model');
+const { SecurityLog, SystemState } = require('../models/security.model');
+
+// UNLOCK STATE KEY - dùng singleton pattern trong MongoDB
+const UNLOCK_STATE_KEY = 'door-unlock-state';
 
 // @desc    Nhận log từ Python Edge AI và phát cảnh báo
 // @route   POST /api/security/log
@@ -51,12 +54,7 @@ exports.getLogs = async (req, res) => {
 // @route   GET /api/security/alert-status
 exports.checkAlertStatus = async (req, res) => {
     try {
-        // Tìm log WARNING/DANGER chưa được xử lý (active) trong 30s gần nhất
-        // Hoặc cứ active là hú (nhân viên phải tắt thủ công) -> Chọn cách này an toàn hơn
-
-        // Tuy nhiên để tránh ESP32 hú mãi vì log cũ quên tắt, ta combine cả 2:
-        // Active AND (trong 5 phút gần đây HOẶC vừa mới xảy ra)
-
+        // Tìm log WARNING/DANGER chưa được xử lý (active) trong 5 phút gần nhất
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
         const activeAlert = await SecurityLog.findOne({
@@ -110,38 +108,63 @@ exports.resetAlarm = async (req, res) => {
     }
 };
 
-// Bien luu trang thai mo khoa (in-memory, reset khi server restart)
-let unlockState = { shouldUnlock: false, unlockAt: null };
-
 // @desc    ESP32 poll de kiem tra co mo khoa khong
 // @route   GET /api/security/unlock-status
 exports.checkUnlockStatus = async (req, res) => {
-    // Tu dong het han sau 10 giay
-    if (unlockState.shouldUnlock && unlockState.unlockAt) {
-        const elapsed = Date.now() - unlockState.unlockAt;
-        if (elapsed > 10000) {
-            unlockState.shouldUnlock = false;
-            unlockState.unlockAt = null;
+    try {
+        const state = await SystemState.findOne({ key: UNLOCK_STATE_KEY });
+
+        if (state && state.shouldUnlock && state.unlockAt) {
+            const elapsed = Date.now() - new Date(state.unlockAt).getTime();
+            if (elapsed > 10000) {
+                // Tự động hết hạn sau 10 giây → reset trong DB
+                await SystemState.findOneAndUpdate(
+                    { key: UNLOCK_STATE_KEY },
+                    { shouldUnlock: false, unlockAt: null }
+                );
+                return res.json({ shouldUnlock: false });
+            }
+            return res.json({ shouldUnlock: true });
         }
+
+        res.json({ shouldUnlock: false });
+    } catch (error) {
+        console.error('Lỗi check unlock:', error);
+        res.json({ shouldUnlock: false });
     }
-    res.json({ shouldUnlock: unlockState.shouldUnlock });
 };
 
 // @desc    AI/Web goi de mo khoa tu xa
 // @route   POST /api/security/trigger-unlock
 exports.triggerUnlock = async (req, res) => {
-    const io = req.app.get('socketio');
-    unlockState.shouldUnlock = true;
-    unlockState.unlockAt = Date.now();
+    try {
+        const io = req.app.get('socketio');
 
-    // Tu dong khoa lai sau 10 giay
-    setTimeout(() => {
-        unlockState.shouldUnlock = false;
-        unlockState.unlockAt = null;
-        if (io) io.emit('door-locked', { timestamp: new Date() });
-    }, 10000);
+        // Lưu trạng thái mở khoá vào MongoDB (upsert = tạo nếu chưa có)
+        await SystemState.findOneAndUpdate(
+            { key: UNLOCK_STATE_KEY },
+            { shouldUnlock: true, unlockAt: new Date() },
+            { upsert: true, new: true }
+        );
 
-    if (io) io.emit('door-unlocked', { timestamp: new Date() });
+        // Tự động khoá lại sau 10 giây
+        setTimeout(async () => {
+            try {
+                await SystemState.findOneAndUpdate(
+                    { key: UNLOCK_STATE_KEY },
+                    { shouldUnlock: false, unlockAt: null }
+                );
+                if (io) io.emit('door-locked', { timestamp: new Date() });
+            } catch (err) {
+                console.error('Lỗi auto-lock:', err);
+            }
+        }, 10000);
 
-    res.json({ success: true, message: 'Unlock triggered - auto lock in 10s' });
+        if (io) io.emit('door-unlocked', { timestamp: new Date() });
+
+        res.json({ success: true, message: 'Unlock triggered - auto lock in 10s' });
+    } catch (error) {
+        console.error('Lỗi trigger unlock:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
 };

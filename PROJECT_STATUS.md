@@ -57,29 +57,42 @@ _Mục đích: Điểm nhấn công nghệ (Edge AI + IoT) - Active Defense._
 
 ## 3. Tech Stack (Công Nghệ)
 
-### Hiện tại (Đã triển khai)
+### Web Application (Đã triển khai ✅)
 
-- **Frontend**: ReactJS (Vite), TailwindCSS, Zustand, React Query.
+- **Frontend**: ReactJS (Vite), TailwindCSS, Zustand, React Query, Socket.IO Client.
   - _Deploy_: Vercel.
-- **Backend**: Node.js, Express.js.
+- **Backend**: Node.js, Express.js, Socket.IO.
   - _Database_: MongoDB Atlas.
   - _Deploy_: Render.
 - **Auth**: JWT, Passport (Google/Facebook).
-- **Payment**: Stripe, VNPay, COD.
+- **Payment**: Stripe, VNPay, SePay (VietQR), COD.
+- **AI Chatbot**: Google Gemini 1.5 Flash API (multi-turn conversation, context-aware).
 
-### Tương lai (Đang/Sẽ làm)
+### AI/Edge AI Service (Đã triển khai ✅)
 
-- **AI/ML**: Python (FastAPI/Flask) cho mô hình nhận diện.
-- **IoT**: C/C++ (Arduino IDE) cho ESP32.
-- **Infrastructure**: AWS (Lambda, IoT Core, S3, SNS).
+- **Ngôn ngữ**: Python 3.
+- **Face Detection**: YOLOv8n (Ultralytics) + MTCNN (facenet-pytorch).
+- **Face Recognition**: InceptionResnetV1 (FaceNet, pretrained VGGFace2).
+- **Hand Intrusion**: MediaPipe Hands (phát hiện tay xâm nhập vùng cấm).
+- **GUI**: Tkinter (chạy local trên laptop/gateway).
+- **Giao tiếp**: Gửi cảnh báo real-time qua REST API → Backend → Socket.IO → Admin Dashboard.
+
+### IoT Firmware (Đã triển khai ✅)
+
+- **Vi điều khiển**: ESP32 (Arduino IDE, C/C++).
+- **Kết nối**: WiFi + Blynk IoT Platform.
+- **Cảm biến & Actuator**: PIR (chuyển động), DHT11 (nhiệt độ/độ ẩm), Servo (khóa cửa), Buzzer, LED x4, Relay, LCD I2C, Reed Switch (cảm biến cửa).
+- **Kiến trúc**: FreeRTOS multi-task (alarm task chạy song song).
+- **Giao tiếp**: Poll API từ Render Backend (`/api/security/alert-status`, `/api/security/unlock-status`).
 
 ## 4. Trạng Thái Hiện Tại (Progress Log)
 
-- [x] **Core E-commerce**: Đăng ký/đăng nhập, Giỏ hàng, Thanh toán, Admin Dashboard.
-- [x] **Deployment**: Frontend và Backend đã chạy online.
-- [ ] **AI Integration**: Chưa bắt đầu (Cần lên plan).
-- [ ] **IoT Integration**: Chưa bắt đầu.
-- [ ] **Tài liệu**: Đang cập nhật `PROJECT_STATUS.md` làm bộ nhớ cho Agent.
+- [x] **Core E-commerce**: Đăng ký/đăng nhập, Giỏ hàng, Thanh toán (Stripe/VNPay/SePay), Admin Dashboard (9 trang).
+- [x] **Deployment**: Frontend (Vercel) + Backend (Render) đã chạy online.
+- [x] **AI Integration**: Chatbot Gemini AI (context-aware, phân quyền admin/user) + Edge AI Face Recognition (YOLOv8 + FaceNet + MTCNN + MediaPipe).
+- [x] **IoT Integration**: ESP32 firmware hoàn chỉnh với Blynk, PIR, DHT11, Servo, Buzzer, LCD, Relay, Reed Switch.
+- [x] **Security System**: Real-time alert (Socket.IO), auto-alarm, face-based unlock, admin dashboard giám sát.
+- [x] **Tài liệu**: `PROJECT_STATUS.md` đã cập nhật.
 
 ## 5. Các Tài Nguyên Quan Trọng
 
@@ -91,6 +104,8 @@ _Mục đích: Điểm nhấn công nghệ (Edge AI + IoT) - Active Defense._
 
 ## 6. Lịch Sử Yêu Cầu Gần Nhất (Context Ngắn Hạn)
 
-- User muốn tạo file này để lưu trữ ngữ cảnh.
-- User đang quan tâm đến việc tích hợp "Hybrid Cloud-Edge AI" vào đồ án.
+- Đã hoàn thiện AI Face Recognition (778 dòng Python, multi-pose registration).
+- Đã hoàn thiện IoT firmware ESP32 (340 dòng, tích hợp Blynk).
+- Đã tích hợp Chatbot AI (Gemini 1.5 Flash) với multi-turn history.
+- Đang fix các vấn đề chưa hoàn chỉnh: chat history, unlock state persistence.
 - User sử dụng tiếng Việt.

@@ -1,5 +1,5 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const Security = require("../models/security.model");
+const { SecurityLog: Security } = require("../models/security.model");
 const Product = require("../models/product.model");
 const Order = require("../models/order.model");
 
@@ -8,7 +8,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 exports.askChatbot = async (req, res) => {
     try {
-        const { question } = req.body;
+        const { question, history } = req.body;
         const user = req.user; // Lay tu middleware auth (neu co)
 
         if (!question) {
@@ -41,12 +41,29 @@ exports.askChatbot = async (req, res) => {
             Dưới đây là dữ liệu thực tế từ hệ thống để bạn tham khảo:
             ${context}
             
-            Hãy trả lời câu hỏi sau của người dùng dựa trên dữ liệu trên. Nếu không biết, hãy nói thật thà nhưng khéo léo.
+            Hãy trả lời câu hỏi của người dùng dựa trên dữ liệu trên. Nếu không biết, hãy nói thật thà nhưng khéo léo.
+            Trả lời ngắn gọn, dùng markdown để format (bold, list, emoji) cho dễ đọc.
         `;
 
-        // 3. Goi Gemini API
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const result = await model.generateContent(systemPrompt + "\n\nCâu hỏi: " + question);
+        // 3. Chuyen doi history tu client sang format Gemini
+        // Client gui: [{ role: "user"|"model", text: "..." }]
+        // Gemini can: [{ role: "user"|"model", parts: [{ text: "..." }] }]
+        const geminiHistory = (history || []).map(msg => ({
+            role: msg.role,
+            parts: [{ text: msg.text }]
+        }));
+
+        // 4. Goi Gemini API voi multi-turn conversation
+        const model = genAI.getGenerativeModel({
+            model: "gemini-1.5-flash",
+            systemInstruction: systemPrompt
+        });
+
+        const chat = model.startChat({
+            history: geminiHistory
+        });
+
+        const result = await chat.sendMessage(question);
         const responseText = result.response.text();
 
         res.json({ answer: responseText });

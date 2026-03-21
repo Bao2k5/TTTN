@@ -38,6 +38,10 @@ CLOUD_BACKEND = "https://hm-jewelry-api.onrender.com"
 API_URL = CLOUD_BACKEND + "/api/security/log"
 RESET_ALARM_URL = CLOUD_BACKEND + "/api/security/reset-alarm"
 
+# === CAMERA SOURCE ===
+# CAMERA_URL = "http://192.168.1.53:81/stream" # Dung ESP32-CAM
+CAMERA_URL = 0 # Dung WEBCAM Laptop 
+
 print(f"[CONFIG] API_URL = {API_URL}")
 
 
@@ -126,7 +130,7 @@ class FaceRegistrationWindow:
         self.detector = detector
         self.callback = callback
         
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(CAMERA_URL)
         self.is_running = True
         self.images_captured = 0
         self.total_needed = 20
@@ -450,7 +454,7 @@ class FaceRecognitionApp:
 
     # --- CORE WORKER ---
     def video_worker(self):
-        cap = cv2.VideoCapture(0)
+        cap = cv2.VideoCapture(CAMERA_URL)
         cap.set(3, 800)
         cap.set(4, 600)
         

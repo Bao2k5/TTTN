@@ -40,4 +40,27 @@ const securityLogSchema = new mongoose.Schema({
     timestamps: true // Tự động thêm createdAt, updatedAt
 });
 
-module.exports = mongoose.model('SecurityLog', securityLogSchema);
+// Schema lưu trạng thái hệ thống (unlock, alarm...) - thay cho biến in-memory
+const systemStateSchema = new mongoose.Schema({
+    key: {
+        type: String,
+        unique: true,
+        required: true
+    },
+    shouldUnlock: {
+        type: Boolean,
+        default: false
+    },
+    unlockAt: {
+        type: Date,
+        default: null
+    }
+}, {
+    timestamps: true
+});
+
+const SecurityLog = mongoose.model('SecurityLog', securityLogSchema);
+const SystemState = mongoose.model('SystemState', systemStateSchema);
+
+module.exports = { SecurityLog, SystemState };
+
