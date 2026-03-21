@@ -71,8 +71,8 @@ _Mục đích: Điểm nhấn công nghệ (Edge AI + IoT) - Active Defense._
 ### AI/Edge AI Service (Đã triển khai ✅)
 
 - **Ngôn ngữ**: Python 3.
-- **Face Detection**: YOLOv8n (Ultralytics) + MTCNN (facenet-pytorch).
-- **Face Recognition**: InceptionResnetV1 (FaceNet, pretrained VGGFace2).
+- **Face Detection & Tracking**: YOLO11n (Ultralytics) + ByteTrack.
+- **Face Recognition**: InsightFace (ArcFace, pretrained buffalo_l).
 - **Hand Intrusion**: MediaPipe Hands (phát hiện tay xâm nhập vùng cấm).
 - **GUI**: Tkinter (chạy local trên laptop/gateway).
 - **Giao tiếp**: Gửi cảnh báo real-time qua REST API → Backend → Socket.IO → Admin Dashboard.
@@ -89,7 +89,7 @@ _Mục đích: Điểm nhấn công nghệ (Edge AI + IoT) - Active Defense._
 
 - [x] **Core E-commerce**: Đăng ký/đăng nhập, Giỏ hàng, Thanh toán (Stripe/VNPay/SePay), Admin Dashboard (9 trang).
 - [x] **Deployment**: Frontend (Vercel) + Backend (Render) đã chạy online.
-- [x] **AI Integration**: Chatbot Gemini AI (context-aware, phân quyền admin/user) + Edge AI Face Recognition (YOLOv8 + FaceNet + MTCNN + MediaPipe).
+- [x] **AI Integration**: Chatbot Gemini AI (Function Calling/Tools) + Edge AI Face Recognition (YOLO11 + ByteTrack + InsightFace + MediaPipe).
 - [x] **IoT Integration**: ESP32 firmware hoàn chỉnh với Blynk, PIR, DHT11, Servo, Buzzer, LCD, Relay, Reed Switch.
 - [x] **Security System**: Real-time alert (Socket.IO), auto-alarm, face-based unlock, admin dashboard giám sát.
 - [x] **Tài liệu**: `PROJECT_STATUS.md` đã cập nhật.
@@ -104,7 +104,7 @@ _Mục đích: Điểm nhấn công nghệ (Edge AI + IoT) - Active Defense._
 
 ## 6. Lịch Sử Yêu Cầu Gần Nhất (Context Ngắn Hạn)
 
-- Đã hoàn thiện AI Face Recognition (778 dòng Python, multi-pose registration).
+- Đã hoàn thiện AI Face Recognition V4 (InsightFace + YOLO11 Tracking, multi-pose registration).
 - Đã hoàn thiện IoT firmware ESP32 (340 dòng, tích hợp Blynk).
 - Đã tích hợp Chatbot AI (Gemini 1.5 Flash) với multi-turn history.
 - Đang fix các vấn đề chưa hoàn chỉnh: chat history, unlock state persistence.

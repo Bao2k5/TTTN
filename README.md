@@ -29,7 +29,7 @@ Dự án phát triển một hệ thống quản lý bán lẻ O2O (Online-to-Of
 Hệ thống hoạt động dựa trên mô hình **3-Layer**:
 
 1.  **Edge Layer (Tại cửa hàng):**
-    - **Camera AI:** Chạy model YOLOv8/MediaPipe để nhận diện khuôn mặt và hành vi xâm nhập.
+    - **Camera AI:** Chạy model YOLO11/InsightFace/MediaPipe để phát hiện xâm nhập và nhận diện khách hàng VIP Real-time.
     - **IoT Controller (ESP32):** Điều khiển thiết bị vật lý (Còi, Đèn, Khóa từ) qua giao thức MQTT.
 2.  **Cloud Layer (AWS):**
     - **AWS IoT Core:** Broker trung gian nhận tín hiệu từ Edge.
@@ -49,7 +49,7 @@ Hệ thống hoạt động dựa trên mô hình **3-Layer**:
 | **Frontend**   | **ReactJS, TailwindCSS**    | Web Dashboard Responsive & Chart.js   |
 | **Database**   | **MongoDB & DynamoDB**      | Mô hình Hybrid Database (SQL + NoSQL) |
 | **PaaS/Cloud** | **AWS (IoT Core, S3, EC2)** | Hạ tầng Cloud chuẩn công nghiệp       |
-| **AI/ML**      | **Python, YOLOv8**          | Xử lý ảnh và Computer Vision          |
+| **AI/ML**      | **Python, YOLO11, InsightFace**| Xử lý ảnh và Computer Vision          |
 | **Hardware**   | **ESP32, Sensors**          | Lập trình nhúng C/C++                 |
 
 ---
