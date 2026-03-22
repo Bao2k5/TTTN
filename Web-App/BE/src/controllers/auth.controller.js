@@ -75,10 +75,10 @@ exports.register = async (req, res) => {
              <p>Hy vọng bạn có trải nghiệm tuyệt vời.</p>`
     });
 
-    if (!mailResult) {
-      console.warn('[AUTH] OTP email failed to send, but proceeding 201.');
+    if (!mailResult || mailResult.error) {
+      console.warn('[AUTH] OTP email failed to send:', mailResult?.error || 'Unknown error');
       return res.status(201).json({
-        message: "Đăng ký thành công nhưng không thể gửi email. Vui lòng liên hệ support.",
+        message: `Đăng ký thành công! (Lưu ý: Không gửi được mail: ${mailResult?.error || 'Lỗi cấu hình'})`,
         needsVerification: true,
         email,
         otp

@@ -6,12 +6,26 @@ function createTransport() {
   const port = process.env.SMTP_PORT;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  if (!host || !port || !user || !pass) return null;
+  if (!user || !pass) return null;
+
+  // Neu la Gmail thi dung service: 'gmail' cho on dinh nhat
+  if (host && host.includes('gmail.com')) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass },
+      connectionTimeout: 10000, // 10s
+      greetingTimeout: 10000, 
+      socketTimeout: 15000
+    });
+  }
+
+  // Fallback cho cac serve khac
   return nodemailer.createTransport({
     host,
-    port: parseInt(port, 10),
+    port: parseInt(port, 10) || 587,
     secure: port == 465,
-    auth: { user, pass }
+    auth: { user, pass },
+    connectionTimeout: 10000
   });
 }
 
@@ -34,7 +48,7 @@ async function sendMail({ to, subject, html, text }) {
     return info;
   } catch (error) {
     console.error('[MAILER] Sending failed:', error.message);
-    return null;
+    return { error: error.message }; // Return error object instead of null
   }
 }
 
