@@ -38,18 +38,12 @@ exports.register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashed = await bcrypt.hash(password, salt);
 
-    const newUser = await User.create({
-      name,
-      email,
-      password: hashed,
-      phone: phone || '',
-      otp,
-      otpExpire,
-      verified: false
-    });
-
-    // Gửi email chứa OTP
-    const html = `
+    // Gửi email chứa OTP TRƯỚC (Fail-Fast)
+    console.log('[AUTH] Registration: Sending OTP email to:', email);
+    const mailResult = await sendMail({
+      to: email,
+      subject: "Mã xác thực đăng ký tài khoản",
+      html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
         <h2 style="color: #0b5c5f; text-align: center;">🎉 Chào mừng đến HM Jewelry!</h2>
         <p>Xin chào <strong>${name}</strong>,</p>
@@ -62,29 +56,28 @@ exports.register = async (req, res) => {
         <p>Nếu bạn không thực hiện đăng ký, vui lòng bỏ qua email này.</p>
         <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
         <p style="color: #888; font-size: 12px; text-align: center;">Trân trọng,<br><strong>Đội ngũ HM Jewelry</strong></p>
-      </div>
-    `;
-
-    // Send OTP email
-    console.log('[AUTH] Registration: Sending OTP email...');
-    const mailResult = await sendMail({
-      to: email,
-      subject: "Mã xác thực đăng ký tài khoản",
-      html: `<h3>Chào mừng bạn đến với HM Jewelry!</h3>
-             <p>Mã xác thực của bạn là: <b>${otp}</b></p>
-             <p>Hy vọng bạn có trải nghiệm tuyệt vời.</p>`
+      </div>`
     });
 
     if (!mailResult || mailResult.error) {
       console.warn('[AUTH] OTP email failed to send:', mailResult?.error || 'Unknown error');
-      return res.status(201).json({
-        message: `Đăng ký thành công! (Lưu ý: Không gửi được mail: ${mailResult?.error || 'Lỗi cấu hình'})`,
-        needsVerification: true,
-        email,
-        otp
+      return res.status(500).json({
+        msg: "Hệ thống đang bảo trì dịch vụ Email. Không thể gửi mã OTP, vui lòng thử lại sau."
       });
     }
-    console.log('[AUTH] Registration: Email sent successfully.');
+    
+    console.log('[AUTH] Registration: Email sent successfully, creating user...');
+
+    // CHỈ TẠO USER KHI MAIL ĐÃ BAY ĐI THÀNH CÔNG
+    const newUser = await User.create({
+      name,
+      email,
+      password: hashed,
+      phone: phone || '',
+      otp,
+      otpExpire,
+      verified: false
+    });
 
     res.status(201).json({
       message: "Đăng ký thành công! Vui lòng kiểm tra email để nhập mã OTP.",
