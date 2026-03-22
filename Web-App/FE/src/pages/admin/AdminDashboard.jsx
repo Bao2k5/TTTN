@@ -89,7 +89,7 @@ const AdminDashboard = () => {
 
         {}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Link to="/admin/products" className="card-luxury p-5 hover:shadow-xl transition-all duration-500 group border-b-2 border-transparent hover:border-luxury-brown">
+          <Link to="/admin/products" className="card-luxury p-5 hover:shadow-xl transition-all duration-500 group border-b-2 border-luxury-brown bg-gradient-to-br from-white to-luxury-ivory">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-luxury-pearl rounded-xl flex items-center justify-center group-hover:bg-luxury-ivory transition-colors shadow-inner">
                 <svg className="w-6 h-6 text-luxury-charcoal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -103,7 +103,7 @@ const AdminDashboard = () => {
             </div>
           </Link>
 
-          <Link to="/admin/orders" className="card-luxury p-5 hover:shadow-xl transition-all duration-500 group border-b-2 border-transparent hover:border-luxury-brown">
+          <Link to="/admin/orders" className="card-luxury p-5 hover:shadow-xl transition-all duration-500 group border-b-2 border-luxury-brown bg-gradient-to-br from-white to-luxury-ivory">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-luxury-pearl rounded-xl flex items-center justify-center group-hover:bg-luxury-ivory transition-colors shadow-inner">
                 <svg className="w-6 h-6 text-luxury-charcoal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,7 +133,7 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          <Link to="/admin/users" className="card-luxury p-5 hover:shadow-xl transition-all duration-500 group border-b-2 border-transparent hover:border-luxury-brown">
+          <Link to="/admin/users" className="card-luxury p-5 hover:shadow-xl transition-all duration-500 group border-b-2 border-luxury-brown bg-gradient-to-br from-white to-luxury-ivory">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-luxury-pearl rounded-xl flex items-center justify-center group-hover:bg-luxury-ivory transition-colors shadow-inner">
                 <svg className="w-6 h-6 text-luxury-charcoal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
