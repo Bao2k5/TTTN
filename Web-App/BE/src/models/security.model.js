@@ -23,6 +23,14 @@ const securityLogSchema = new mongoose.Schema({
         type: String, // URL ảnh bằng chứng (Cloudinary/S3)
         default: ''
     },
+    videoUrl: {
+        type: String, // URL video bằng chứng
+        default: ''
+    },
+    videoPublicId: {
+        type: String, // Public ID của video trên Cloudinary
+        default: ''
+    },
     deviceId: {
         type: String,
         default: 'Camera-01'

@@ -14,6 +14,7 @@ const AdminSecurity = () => {
     const [currentAlert, setCurrentAlert] = useState(null);
     const [isResetting, setIsResetting] = useState(false);
     const [justReset, setJustReset] = useState(false); // Flag để không trigger lại ngay sau reset
+    const [selectedVideo, setSelectedVideo] = useState(null);
     const audioRef = useRef(null);
 
     const fetchLogs = async (skipAlarmCheck = false) => {
@@ -175,7 +176,34 @@ const AdminSecurity = () => {
                             {isResetting ? '⏳ Đang xử lý...' : '🔇 TẮT CẢNH BÁO'}
                         </button>
                         
+                        {currentAlert.videoUrl && (
+                            <div className="mt-8 w-full max-w-lg rounded-xl overflow-hidden border-2 border-white/50 shadow-2xl">
+                                <video 
+                                    src={currentAlert.videoUrl} 
+                                    controls 
+                                    autoPlay 
+                                    muted 
+                                    className="w-full h-auto"
+                                ></video>
+                            </div>
+                        )}
+                        
                         <p className="mt-4 text-sm opacity-60">Nhấn nút để xác nhận đã xử lý</p>
+                    </div>
+                </div>
+            )}
+
+            {/* VIDEO PLAYER MODAL */}
+            {selectedVideo && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 p-4">
+                    <div className="relative w-full max-w-4xl bg-luxury-black rounded-lg overflow-hidden shadow-2xl border border-luxury-platinum">
+                        <div className="flex justify-between items-center p-4 border-b border-white/10">
+                            <h3 className="text-white font-medium">Bằng chứng Video - {new Date(selectedVideo.timestamp).toLocaleString('vi-VN')}</h3>
+                            <button onClick={() => setSelectedVideo(null)} className="text-white/60 hover:text-white text-2xl font-bold">&times;</button>
+                        </div>
+                        <div className="aspect-video bg-black flex items-center justify-center">
+                            <video src={selectedVideo.url} controls autoPlay className="max-h-full max-w-full"></video>
+                        </div>
                     </div>
                 </div>
             )}
@@ -227,6 +255,7 @@ const AdminSecurity = () => {
                                 <th className="p-4 font-medium text-luxury-black text-sm uppercase tracking-wider">Tiêu đề</th>
                                 <th className="p-4 font-medium text-luxury-black text-sm uppercase tracking-wider">Nội dung</th>
                                 <th className="p-4 font-medium text-luxury-black text-sm uppercase tracking-wider">Đối tượng</th>
+                                <th className="p-4 font-medium text-luxury-black text-sm uppercase tracking-wider">Hành động</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-luxury-platinum">
@@ -257,6 +286,18 @@ const AdminSecurity = () => {
                                             <span className="text-blue-600 font-bold">{log.detectedName}</span>
                                         ) : (
                                             <span className="text-gray-500 italic">{log.detectedName}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-4">
+                                        {log.videoUrl ? (
+                                            <button 
+                                                onClick={() => setSelectedVideo({ url: log.videoUrl, timestamp: log.timestamp })}
+                                                className="bg-luxury-brown text-white text-[10px] px-3 py-1 rounded-full uppercase tracking-widest hover:bg-luxury-charcoal transition-all shadow-sm flex items-center gap-1"
+                                            >
+                                                <span>👁️</span> Xem Video
+                                            </button>
+                                        ) : (
+                                            <span className="text-gray-300 text-[10px] uppercase tracking-widest italic">No Video</span>
                                         )}
                                     </td>
                                 </tr>

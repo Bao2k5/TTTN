@@ -8,7 +8,7 @@ const UNLOCK_STATE_KEY = 'door-unlock-state';
 // @route   POST /api/security/log
 exports.createLog = async (req, res) => {
     try {
-        const { type, title, message, detectedName, imageUrl } = req.body;
+        const { type, title, message, detectedName, imageUrl, videoUrl, videoPublicId } = req.body;
         const io = req.app.get('socketio');
 
         const newLog = new SecurityLog({
@@ -17,6 +17,8 @@ exports.createLog = async (req, res) => {
             message,
             detectedName,
             imageUrl,
+            videoUrl,
+            videoPublicId,
             status: 'active' // Mặc định là active
         });
 

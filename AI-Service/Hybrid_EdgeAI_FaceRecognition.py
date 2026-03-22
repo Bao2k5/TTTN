@@ -189,8 +189,9 @@ class FaceRecognitionApp:
         
         # TRACKING CACHE: track_id -> name (To avoid running FaceNet every frame)
         self.tracked_identities = {}
-
-        self.setup_ui()
+        self.is_recording = False
+        self.last_alert_time = 0
+        self.alert_cooldown = 30 # 30 giay moi bao 1 lan de tranh SPAM
         self.load_known_faces()
 
     def load_known_faces(self):
@@ -223,6 +224,68 @@ class FaceRecognitionApp:
         tk.Button(self.side_bar, text="🗑️ DELETE STAFF", command=self.delete_staff, bg='#e67e22', fg='white', font=('Segoe UI', 10, 'bold')).pack(pady=10)
         self.video_label = tk.Label(self.display_frame, bg='black')
         self.video_label.pack(fill=tk.BOTH, expand=True)
+
+    def send_security_alert(self, frame, name="Stranger"):
+        now = time.time()
+        if now - self.last_alert_time < self.alert_cooldown or self.is_recording:
+            return
+        
+        self.last_alert_time = now
+        self.is_recording = True
+        
+        def task():
+            try:
+                print(f"[ALERT] Intrusion detected! Recording video...")
+                
+                # 1. Chụp ảnh nền làm bằng chứng nhanh
+                _, img_encoded = cv2.imencode('.jpg', frame)
+                img_bytes = img_encoded.tobytes()
+                img_res = cloudinary.uploader.upload(img_bytes, folder="security_alerts")
+                img_url = img_res.get('secure_url')
+                
+                # 2. Quay video 5 giây (Giả lập buffer bằng cách lấy tiếp frames)
+                video_filename = f"alert_{int(now)}.mp4"
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                h, w, _ = frame.shape
+                out = cv2.VideoWriter(video_filename, fourcc, 20.0, (w, h))
+                
+                cap = cv2.VideoCapture(CAMERA_URL)
+                for _ in range(100): # ~5 giay tai 20fps
+                    ret, v_frame = cap.read()
+                    if not ret: break
+                    v_frame = cv2.flip(v_frame, 1)
+                    out.write(v_frame)
+                out.release()
+                cap.release()
+                
+                # 3. Upload Video lên Cloudinary
+                print(f"[ALERT] Uploading video to Cloudinary...")
+                vid_res = cloudinary.uploader.upload(video_filename, folder="security_alerts", resource_type="video")
+                vid_url = vid_res.get('secure_url')
+                vid_id = vid_res.get('public_id')
+                
+                # 4. Gửi Log về Backend
+                payload = {
+                    "type": "DANGER",
+                    "title": "CẢNH BÁO XÂM NHẬP!",
+                    "message": f"Phát hiện {name} đang tiếp cận quầy trang sức!",
+                    "detectedName": name,
+                    "imageUrl": img_url,
+                    "videoUrl": vid_url,
+                    "videoPublicId": vid_id
+                }
+                requests.post(API_URL, json=payload, timeout=10)
+                print(f"[SUCCESS] Alert sent with Video: {vid_url}")
+                
+                # Dọn dẹp file tạm
+                if os.path.exists(video_filename): os.remove(video_filename)
+                
+            except Exception as e:
+                print(f"[ERROR] Alert failed: {e}")
+            finally:
+                self.is_recording = False
+
+        threading.Thread(target=task, daemon=True).start()
 
     def video_worker(self):
         cap = cv2.VideoCapture(CAMERA_URL)
@@ -284,6 +347,10 @@ class FaceRecognitionApp:
 
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                     cv2.putText(frame, f"ID:{track_id} {name}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
+                # 🚀 TRIGGER ALERT IF STRANGER IN FENCE
+                if is_stranger_in_fence:
+                    self.send_security_alert(frame, "Stranger")
 
             # 3. BACKGROUND CHECKS
             color_fence = (0, 0, 255) if is_stranger_in_fence else (0, 255, 0)
