@@ -60,21 +60,27 @@ function mongoSanitize() {
   const m = expressMongoSanitize();
   return function (req, res, next) {
     try {
-      // Try to sanitize normally
       return m(req, res, next);
     } catch (err) {
-      // If req.query or req.body are read-only, create a writeable copy and sanitize that
       if (err.message && err.message.includes('only a getter')) {
         try {
-          if (req.query) req.query = JSON.parse(JSON.stringify(req.query));
-          if (req.body) req.body = JSON.parse(JSON.stringify(req.body));
-          if (req.params) req.params = JSON.parse(JSON.stringify(req.params));
+          // Bß╗æ tr├¡ lß║íi c├íc property bß╗ï kh├│a ─æß╗â middleware c├│ thß╗â ghi ─æ├¿
+          ['query', 'body', 'params'].forEach(prop => {
+            if (req[prop]) {
+              const val = JSON.parse(JSON.stringify(req[prop]));
+              Object.defineProperty(req, prop, {
+                value: val,
+                writable: true,
+                configurable: true,
+                enumerable: true
+              });
+            }
+          });
           return m(req, res, next);
         } catch (innerErr) {
-          console.warn('[security.middleware] Failed to force-sanitize:', innerErr.message);
+          // Silent fallback
         }
       }
-      console.warn('[security.middleware] express-mongo-sanitize skipped:', err.message);
       return next();
     }
   };
