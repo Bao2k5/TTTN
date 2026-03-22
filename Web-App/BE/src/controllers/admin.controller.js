@@ -157,7 +157,7 @@ exports.getStats = async (req, res) => {
       totalUsers,
       totalOrders,
       totalProducts,
-      revenue,
+      totalRevenue: revenue,
       topProducts,
       pendingOrders,
       shippingOrders,
