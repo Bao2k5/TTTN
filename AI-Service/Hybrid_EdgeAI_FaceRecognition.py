@@ -35,8 +35,7 @@ cloudinary.config(
 
 CLOUD_BACKEND = "https://hm-jewelry-api.onrender.com"
 API_URL = CLOUD_BACKEND + "/api/security/log"
-UNLOCK_URL = CLOUD_BACKEND + "/api/security/unlock"
-AUTHORIZED_USERS = ["Bao"] # Them ten cac nhan vien sếp muon cho phep mo khoa vao day
+UNLOCK_URL = CLOUD_BACKEND + "/api/security/trigger-unlock"
 RESET_ALARM_URL = CLOUD_BACKEND + "/api/security/reset-alarm"
 
 CAMERA_URL = 0 # Webcam laptop
@@ -191,20 +190,27 @@ class FaceRecognitionApp:
         
         # TRACKING CACHE: track_id -> name (To avoid running FaceNet every frame)
         self.tracked_identities = {}
+        self.authorized_users = set() # Danh sach nhan vien duoc mo khoa (Dynamic)
         self.is_recording = False
         self.last_alert_time = 0
         self.last_unlock_time = 0 
-        self.alert_cooldown = 30 # 30 giay moi bao 1 lan de tranh SPAM
-        self.unlock_cooldown = 60 # 1 phut moi cho phep auto-unlock tiep
-        self.frame_buffer = [] # De luu lai may giay truoc khi alert
+        self.alert_cooldown = 30 
+        self.unlock_cooldown = 60 
+        self.frame_buffer = [] 
+        self.current_frame = None # Frame hien tai dang duoc camera doc
+        self.setup_ui()
         self.load_known_faces()
 
     def load_known_faces(self):
         try:
+            self.authorized_users = set()
             docs = list(self.collection.find({}))
             X, y = [], []
             for doc in docs:
                 name = doc['name']
+                if doc.get('is_authorized', False):
+                    self.authorized_users.add(name)
+                    
                 emb_arr = np.load(__import__('io').BytesIO(doc['embeddings']))
                 for vec in emb_arr:
                     X.append(vec)
@@ -216,7 +222,13 @@ class FaceRecognitionApp:
                 self.classifier = KNeighborsClassifier(n_neighbors=min(5, len(set(y))), metric='euclidean')
                 self.classifier.fit(X, y_encoded)
                 print(f"[INFO] Loaded {len(set(y))} users from DB.")
-        except: pass
+            else:
+                self.classifier = None
+                self.encoder = None
+                self.tracked_identities = {} # Clear current tracker
+                print(f"[INFO] No users found in DB. AI Reset.")
+        except Exception as e:
+            print(f"[ERROR] Failed to load known faces: {e}")
 
     def setup_ui(self):
         self.side_bar = tk.Frame(self.root, bg='#34495e', width=260)
@@ -230,35 +242,39 @@ class FaceRecognitionApp:
         self.video_label = tk.Label(self.display_frame, bg='black')
         self.video_label.pack(fill=tk.BOTH, expand=True)
 
-    def send_security_alert(self, current_frame, name="Stranger"):
+    def send_security_alert(self, name="Stranger"):
         now = time.time()
-        if now - self.last_alert_time < self.alert_cooldown or self.is_recording:
+        if now - self.last_alert_time < self.alert_cooldown or self.is_recording or self.current_frame is None:
             return
         
         self.last_alert_time = now
         self.is_recording = True
         
-        # Lay ban sao buffer hien tai de ghi video
+        # Lay 50 frames cu tu buffer
         record_buffer = list(self.frame_buffer)
+        current_frame_copy = self.current_frame.copy()
         
         def task():
             try:
                 print(f"[ALERT] Intrusion detected! Saving video evidence...")
                 
                 # 1. Chup anh hien tai
-                _, img_encoded = cv2.imencode('.jpg', current_frame)
+                _, img_encoded = cv2.imencode('.jpg', current_frame_copy)
                 img_bytes = img_encoded.tobytes()
                 img_res = cloudinary.uploader.upload(img_bytes, folder="security_alerts")
                 img_url = img_res.get('secure_url')
                 
-                # 2. Tao video tu buffer (Tranh mo lai Camera gay loi trang man hinh)
+                # 2. Tao video tu buffer
                 video_filename = f"alert_{int(now)}.mp4"
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                h, w, _ = current_frame.shape
-                out = cv2.VideoWriter(video_filename, fourcc, 10.0, (w, h)) # 10fps cho nhe
+                h, w, _ = current_frame_copy.shape
+                out = cv2.VideoWriter(video_filename, fourcc, 10.0, (w, h))
                 
-                for f in record_buffer:
-                    out.write(f)
+                if not record_buffer:
+                    out.write(current_frame_copy)
+                else:
+                    for f in record_buffer:
+                        out.write(f)
                 out.release()
                 
                 # 3. Upload Video
@@ -294,7 +310,7 @@ class FaceRecognitionApp:
         if now - self.last_unlock_time < self.unlock_cooldown:
             return
         
-        if name in AUTHORIZED_USERS:
+        if name in self.authorized_users:
             self.last_unlock_time = now
             print(f"[ACCESS] Authorized User detected: {name}. Unlocking...")
             try:
@@ -313,6 +329,7 @@ class FaceRecognitionApp:
             ret, frame = cap.read()
             if not ret: break
             frame = cv2.flip(frame, 1)
+            self.current_frame = frame.copy() 
             
             # Update frame buffer (Luon luu khoang 50 frames cu ~ 5 giay)
             self.frame_buffer.append(frame.copy())
@@ -332,54 +349,50 @@ class FaceRecognitionApp:
                 for box, track_id in zip(boxes, track_ids):
                     x1, y1, x2, y2 = box
                     
-                    # 2. XÁC THỰC DANH TÍNH
-                    if track_id not in self.tracked_identities or self.tracked_identities[track_id] == "Processing...":
-                        # Crop body to find face
-                        body_crop = frame[max(0, y1):y2, max(0, x1):x2]
-                        if body_crop.size > 0 and INSIGHTFACE_AVAILABLE:
-                            faces = self.face_app.get(body_crop)
-                            if len(faces) > 0:
-                                face = faces[0]
-                                emb = face.embedding
-                                emb = emb / np.linalg.norm(emb) # L2 NORMALIZE for Euclidean matching
-                                
-                                if self.classifier:
+                    # 2. XÁC THỰC DANH TÍNH (Chi chay neu chua co trong cache)
+                    if track_id not in self.tracked_identities:
+                        # Mac dinh la Stranger khi dang xu ly
+                        self.tracked_identities[track_id] = "Stranger"
+                        
+                        # Crop body de tim face (Chi chay neu co Classifier)
+                        if self.classifier is not None:
+                            body_crop = frame[max(0, y1):y2, max(0, x1):x2]
+                            if body_crop.size > 0 and INSIGHTFACE_AVAILABLE:
+                                faces = self.face_app.get(body_crop)
+                                if len(faces) > 0:
+                                    face = faces[0]
+                                    emb = face.embedding
+                                    emb = emb / np.linalg.norm(emb)
+                                    
                                     distances, indices = self.classifier.kneighbors([emb])
-                                    print(f"[DEBUG] Distance for Track {track_id}: {distances[0][0]:.3f}")
-                                    # Noi long nguong InsightFace ra 1.25 de de nhan dien hon
-                                    if distances[0][0] < 1.4: 
+                                    if distances[0][0] < 1.3: # Nguong 1.3 cho InsightFace
                                         label_idx = self.classifier.predict([emb])[0]
-                                        name = self.encoder.inverse_transform([label_idx])
-                                        name = name[0] if isinstance(name, np.ndarray) else name
+                                        name = self.encoder.inverse_transform([label_idx])[0]
                                         self.tracked_identities[track_id] = name
-                                    else:
-                                        self.tracked_identities[track_id] = "Stranger"
-                            else:
-                                self.tracked_identities[track_id] = "Stranger"
                     
                     name = self.tracked_identities.get(track_id, "Stranger")
                     
+                    # 3. KIEM TRA VUNG AN NINH
                     in_fence = not (x2 < fence_box[0] or x1 > fence_box[2] or y2 < fence_box[1] or y1 > fence_box[3])
                     
                     if "Stranger" in name:
-                        color = (0, 0, 255)
+                        color = (0, 0, 255) # Do
                         if in_fence: is_stranger_in_fence = True
                     else:
-                        color = (0, 255, 0)
+                        color = (0, 255, 0) # Xanh
                         self.is_staff_present = True
+                        if name in AUTHORIZED_USERS:
+                            self.handle_face_unlock(name)
 
+                    # Draw Result
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                     cv2.putText(frame, f"ID:{track_id} {name}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-                    
-                    # 🔑 TRIGGER FACE UNLOCK FOR STAFF
-                    if name in AUTHORIZED_USERS:
-                        self.handle_face_unlock(name)
 
-                # 🚀 TRIGGER ALERT IF STRANGER IN FENCE
-                if is_stranger_in_fence:
-                    self.send_security_alert(frame, "Stranger")
+            # 4. TRIGGER ALERT IF STRANGER IN FENCE
+            if is_stranger_in_fence:
+                self.send_security_alert("Stranger")
 
-            # 3. BACKGROUND CHECKS
+            # 5. DRAW FENCE
             color_fence = (0, 0, 255) if is_stranger_in_fence else (0, 255, 0)
             cv2.rectangle(frame, (fence_box[0], fence_box[1]), (fence_box[2], fence_box[3]), color_fence, 2)
             cv2.putText(frame, "JEWELRY ZONE", (fence_box[0], fence_box[1]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color_fence, 2)
@@ -392,13 +405,15 @@ class FaceRecognitionApp:
     def update_ui_loop(self):
         if self.is_running:
             try:
-                frame = self.frame_queue.get_nowait()
-                img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                imgtk = ImageTk.PhotoImage(image=img)
-                self.video_label.imgtk = imgtk
-                self.video_label.configure(image=imgtk)
-            except: pass
-            self.root.after(10, self.update_ui_loop)
+                if not self.frame_queue.empty():
+                    frame = self.frame_queue.get_nowait()
+                    img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                    imgtk = ImageTk.PhotoImage(image=img)
+                    self.video_label.imgtk = imgtk
+                    self.video_label.configure(image=imgtk)
+            except Exception as e:
+                print(f"[UI ERROR] {e}")
+            self.root.after(20, self.update_ui_loop) # Tang len 20ms cho nhe CPU
 
     def start_system(self):
         if not self.is_running:
@@ -422,8 +437,10 @@ class FaceRecognitionApp:
         if not name: 
             self.start_system() # Mo lai he thong neu bam Huy
             return
+        
+        is_auth = messagebox.askyesno("Quyền hạn", f"Cho phép '{name}' được tự động mở khóa tủ bằng khuôn mặt?")
             
-        def process_embeddings(staff_name):
+        def process_embeddings(staff_name, is_authorized):
             def worker():
                 embs = []
                 folder = f"dataset/train/{staff_name}"
@@ -438,7 +455,12 @@ class FaceRecognitionApp:
                 if embs:
                     buf = __import__('io').BytesIO()
                     np.save(buf, np.array(embs))
-                    self.collection.replace_one({'name': staff_name}, {'name': staff_name, 'embeddings': Binary(buf.getvalue())}, upsert=True)
+                    payload = {
+                        'name': staff_name, 
+                        'embeddings': Binary(buf.getvalue()),
+                        'is_authorized': is_authorized
+                    }
+                    self.collection.replace_one({'name': staff_name}, payload, upsert=True)
                     
                     # RE-EVALUATE TRACKER SO BUGS ARE FIXED
                     self.tracked_identities = {} 
@@ -455,7 +477,7 @@ class FaceRecognitionApp:
             threading.Thread(target=worker, daemon=True).start()
                 
         # USE cv2.CascadeClassifier instead of heavy InsightFace for pure GUI UI flow
-        FaceRegistrationWindow(self.root, name, self.detector, process_embeddings)
+        FaceRegistrationWindow(self.root, name, self.detector, lambda n: process_embeddings(n, is_auth))
 
     def delete_staff(self):
         """Hiển thị danh sách nhân viên và cho phép xóa"""

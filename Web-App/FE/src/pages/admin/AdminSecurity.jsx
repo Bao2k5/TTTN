@@ -56,11 +56,15 @@ const AdminSecurity = () => {
         }
         
         if (isResetting) return; // Prevent double click
+        
+        const pin = prompt("Nhập mã PIN an ninh để tắt còi báo động (Mặc định: 1234):");
+        if (!pin) return;
+
         setIsResetting(true);
         
         try {
             console.log('Calling reset-alarm API...');
-            const response = await api.post('/security/reset-alarm');
+            const response = await api.post('/security/reset-alarm', { pin });
             console.log('Reset response:', response.data);
             
             // Tắt alarm ngay lập tức
@@ -139,7 +143,7 @@ const AdminSecurity = () => {
                     <div className="absolute w-64 h-64 rounded-full border-4 border-white/30 animate-ping"></div>
                     <div className="absolute w-48 h-48 rounded-full border-4 border-white/50 animate-pulse"></div>
                     
-                    <div className="relative z-10 text-center px-8">
+                    <div className="relative z-10 text-center px-8 flex flex-col items-center">
                         {/* Icon */}
                         <div className="text-8xl mb-6 animate-bounce">⚠️</div>
                         
@@ -177,14 +181,15 @@ const AdminSecurity = () => {
                         </button>
                         
                         {currentAlert.videoUrl && (
-                            <div className="mt-8 w-full max-w-lg rounded-xl overflow-hidden border-2 border-white/50 shadow-2xl">
-                                <video 
-                                    src={currentAlert.videoUrl} 
-                                    controls 
-                                    autoPlay 
-                                    muted 
-                                    className="w-full h-auto"
-                                ></video>
+                            <div className="mt-8">
+                                <a 
+                                    href={currentAlert.videoUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="bg-yellow-400 hover:bg-yellow-500 text-black px-8 py-3 rounded-full font-bold flex items-center gap-2 transition-all shadow-xl hover:scale-105"
+                                >
+                                    🎬 XEM BẰNG CHỨNG VIDEO (CLOUDINARY)
+                                </a>
                             </div>
                         )}
                         
@@ -224,10 +229,10 @@ const AdminSecurity = () => {
                     ) : (
                         <div className="flex items-center gap-2 text-green-600 bg-green-50 px-4 py-2 rounded border border-green-200">
                              <span className="relative flex h-3 w-3">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                            </span>
-                             System Safe
+                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                 <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                             </span>
+                              System Safe
                         </div>
                     )}
                    
