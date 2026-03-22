@@ -140,9 +140,11 @@ exports.forgotPassword = async (req, res) => {
 
     const resetUrl = `${process.env.FRONTEND_URL || ''}/reset-password?email=${encodeURIComponent(email)}&token=${resetToken}`;
     const html = `<p>Xin chào ${user.name},</p><p>Click link để đặt lại mật khẩu: <a href="${resetUrl}">${resetUrl}</a></p><p>Nếu bạn không yêu cầu, hãy bỏ qua email này.</p>`;
-    const mailResult = await sendMail({ to: email, subject: 'Đặt lại mật khẩu', html, text: `Reset link: ${resetUrl}` }).catch(() => null);
+    const mailResult = await sendMail({ to: email, subject: 'Đặt lại mật khẩu', html, text: `Reset link: ${resetUrl}` });
 
-    if (!mailResult) return res.json({ message: 'Password reset token generated', resetToken });
+    if (!mailResult || mailResult.error) {
+       return res.status(500).json({ msg: "Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau.", error: mailResult?.error });
+    }
     res.json({ message: 'Password reset email sent' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -178,8 +180,10 @@ exports.sendVerifyEmail = async (req, res) => {
     await user.save();
     const verifyUrl = `${process.env.FRONTEND_URL || ''}/verify-email?email=${encodeURIComponent(email)}&token=${token}`;
     const html = `<p>Xin chào ${user.name},</p><p>Click link để xác thực email: <a href="${verifyUrl}">${verifyUrl}</a></p>`;
-    const mailResult = await sendMail({ to: email, subject: 'Xác thực email', html, text: `Verify link: ${verifyUrl}` }).catch(() => null);
-    if (!mailResult) return res.json({ message: 'Verify token generated', token });
+    const mailResult = await sendMail({ to: email, subject: 'Xác thực email', html, text: `Verify link: ${verifyUrl}` });
+    if (!mailResult || mailResult.error) {
+       return res.status(500).json({ msg: 'Không thể gửi email xác thực', error: mailResult?.error });
+    }
     res.json({ message: 'Verify email sent' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -297,17 +301,12 @@ exports.sendResetCode = async (req, res) => {
       subject: '🔐 Mã OTP đặt lại mật khẩu - HM Jewelry',
       html,
       text: `Mã OTP của bạn là: ${otp}. Có hiệu lực trong 10 phút.`
-    }).catch(err => {
-      console.error('Error sending OTP email:', err);
-      return null;
     });
 
-    if (!mailResult) {
-      // Nếu lỗi mail thì trả về OTP luôn để test
-      // TODO: Nhớ fix lại cái này khi chạy production
-      return res.json({
-        message: "Không thể gửi email. Vui lòng kiểm tra cấu hình SMTP.",
-        otp // Only for development/testing
+    if (!mailResult || mailResult.error) {
+      return res.status(500).json({
+        msg: "Hệ thống đang bảo trì dịch vụ Email. Không thể gửi mã OTP đặt lại mật khẩu.",
+        error: mailResult?.error
       });
     }
 
@@ -457,15 +456,12 @@ exports.resendOtp = async (req, res) => {
       subject: '🔄 Mã OTP mới - HM Jewelry',
       html,
       text: `Mã OTP mới của bạn là: ${otp}. Có hiệu lực trong 10 phút.`
-    }).catch(err => {
-      console.error('Error sending resend OTP email:', err);
-      return null;
     });
 
-    if (!mailResult) {
-      return res.json({
-        message: "Không thể gửi email. Vui lòng thử lại sau.",
-        otp // Only for development/testing
+    if (!mailResult || mailResult.error) {
+      return res.status(500).json({
+        msg: "Hệ thống đang bảo trì dịch vụ Email. Không thể gửi lại mã OTP vào lúc này.",
+        error: mailResult?.error
       });
     }
 
