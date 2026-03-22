@@ -1,8 +1,10 @@
 const nodemailer = require('nodemailer');
-const { Resend } = require('resend');
+const sgMail = require('@sendgrid/mail');
 
-// Khởi tạo Resend SDK nếu có Key (Bypass SMTP block)
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+// Cấu hình SendGrid API Key (Bypass Render SMTP Block & Gửi cho mọi user)
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
 
 function createTransport() {
   const host = process.env.SMTP_HOST;
@@ -33,36 +35,32 @@ function createTransport() {
 async function sendMail({ to, subject, html, text }) {
   console.log(`[MAILER] Preparing to send email to: ${to}`);
 
-  // 1. Ưu tiên dùng Resend (Mượt, HTTP API, không bị khóa cổng trên Render)
-  if (resend) {
+  // 1. Ưu tiên dùng SendGrid HTTP API (Vượt tường Render, bắn OTP cho mọi người)
+  if (process.env.SENDGRID_API_KEY) {
     try {
-      console.log('[MAILER] Using Resend HTTP API...');
-      const { data, error } = await resend.emails.send({
-        from: process.env.RESEND_FROM || 'HM Jewelry <onboarding@resend.dev>', // Bắt buộc dùng onboarding@resend.dev nếu chưa Verify Domain trên Resend
-        to: Array.isArray(to) ? to : [to],
+      console.log('[MAILER] Using SendGrid HTTP API...');
+      const msg = {
+        to: to,
+        from: 'HM Jewelry <leduongbao2019@gmail.com>', // Bat buoc phai match Sender Identity cua SendGrid
         subject: subject,
+        text: text || 'HM Jewelry Notification',
         html: html,
-        text: text || ''
-      });
+      };
 
-      if (error) {
-         console.error('[MAILER-RESEND] Sending failed:', error);
-         return { error: error.message };
-      }
-
-      console.log('[MAILER-RESEND] Email sent successfully:', data?.id);
-      return data;
-    } catch (err) {
-      console.error('[MAILER-RESEND] Exception:', err.message);
-      return { error: err.message };
+      const [response] = await sgMail.send(msg);
+      console.log('[MAILER-SENDGRID] Email sent successfully! Status:', response.statusCode);
+      return response;
+    } catch (error) {
+      console.error('[MAILER-SENDGRID] Sending failed:', error.response ? error.response.body : error.message);
+      return { error: error.message };
     }
   }
 
-  // 2. Chạy phòng hờ bằng Nodemailer nếu không có Key Resend
+  // 2. Chạy phòng hờ bằng Nodemailer nếu chạy Local không có API Key SendGrid
   console.log('[MAILER] Falling back to standard SMTP / Nodemailer...');
   const transporter = createTransport();
   if (!transporter) {
-    console.error('[MAILER] SMTP not configured. Missing env variables.');
+    console.error('[MAILER] Neither SendGrid nor Nodemailer configured.');
     return { error: 'SMTP/Mailer not configured' };
   }
   
