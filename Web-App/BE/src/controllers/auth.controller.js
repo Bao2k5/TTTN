@@ -65,29 +65,26 @@ exports.register = async (req, res) => {
       </div>
     `;
 
+    // Send OTP email
+    console.log('[AUTH] Registration: Sending OTP email...');
     const mailResult = await sendMail({
       to: email,
-      subject: ' Mã xác thực đăng ký - HM Jewelry',
-      html,
-      text: `Mã OTP của bạn là: ${otp}. Có hiệu lực trong 10 phút.`
-    }).catch(err => {
-      console.error('[register] Error sending OTP email:');
-      console.error('  Error name:', err.name);
-      console.error('  Error message:', err.message);
-      console.error('  Full error:', err);
-      return null;
+      subject: "Mã xác thực đăng ký tài khoản",
+      html: `<h3>Chào mừng bạn đến với HM Jewelry!</h3>
+             <p>Mã xác thực của bạn là: <b>${otp}</b></p>
+             <p>Hy vọng bạn có trải nghiệm tuyệt vời.</p>`
     });
 
     if (!mailResult) {
-      // Nếu gửi mail lỗi thì vẫn trả về success để test (nhưng có kèm OTP trong response)
-      // TODO: Xóa cái otp trong response khi deploy thật
+      console.warn('[AUTH] OTP email failed to send, but proceeding 201.');
       return res.status(201).json({
         message: "Đăng ký thành công nhưng không thể gửi email. Vui lòng liên hệ support.",
         needsVerification: true,
         email,
-        otp // Only for development/testing
+        otp
       });
     }
+    console.log('[AUTH] Registration: Email sent successfully.');
 
     res.status(201).json({
       message: "Đăng ký thành công! Vui lòng kiểm tra email để nhập mã OTP.",

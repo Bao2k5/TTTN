@@ -60,10 +60,21 @@ function mongoSanitize() {
   const m = expressMongoSanitize();
   return function (req, res, next) {
     try {
+      // Try to sanitize normally
       return m(req, res, next);
     } catch (err) {
-      // Log and skip sanitation for this request to prevent server crash
-      console.warn('[security.middleware] express-mongo-sanitize threw, skipping sanitize for request:', err && err.message ? err.message : err);
+      // If req.query or req.body are read-only, create a writeable copy and sanitize that
+      if (err.message && err.message.includes('only a getter')) {
+        try {
+          if (req.query) req.query = JSON.parse(JSON.stringify(req.query));
+          if (req.body) req.body = JSON.parse(JSON.stringify(req.body));
+          if (req.params) req.params = JSON.parse(JSON.stringify(req.params));
+          return m(req, res, next);
+        } catch (innerErr) {
+          console.warn('[security.middleware] Failed to force-sanitize:', innerErr.message);
+        }
+      }
+      console.warn('[security.middleware] express-mongo-sanitize skipped:', err.message);
       return next();
     }
   };

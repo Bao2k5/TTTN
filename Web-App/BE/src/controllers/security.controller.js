@@ -1,4 +1,5 @@
 const { SecurityLog, SystemState } = require('../models/security.model');
+const TempLog = require('../models/tempLog.model');
 
 // UNLOCK STATE KEY - dùng singleton pattern trong MongoDB
 const UNLOCK_STATE_KEY = 'door-unlock-state';
@@ -78,11 +79,18 @@ exports.checkAlertStatus = async (req, res) => {
     }
 };
 
-// @desc    API cho nhân viên tắt còi báo động (Soft Delete/Resolve)
+// @desc    API cho nhân viên tắt còi báo động (Cần mã PIN xác thực)
 // @route   POST /api/security/reset-alarm
 exports.resetAlarm = async (req, res) => {
     try {
+        const { pin } = req.body;
         const io = req.app.get('socketio');
+
+        // Basic PIN check (Default: 1234 or from ENV)
+        const sysPin = process.env.ALARM_PIN || '1234';
+        if (pin !== sysPin) {
+            return res.status(401).json({ success: false, message: 'Sai mã PIN xác thực!' });
+        }
 
         // Cập nhật tất cả log Active -> Resolved
         const result = await SecurityLog.updateMany(
@@ -92,7 +100,7 @@ exports.resetAlarm = async (req, res) => {
 
         if (io) {
             io.emit('alarm-resolved', {
-                processedBy: 'Staff',
+                processedBy: req.user ? req.user.name : 'Staff',
                 timestamp: new Date()
             });
         }
@@ -165,6 +173,40 @@ exports.triggerUnlock = async (req, res) => {
         res.json({ success: true, message: 'Unlock triggered - auto lock in 10s' });
     } catch (error) {
         console.error('Lỗi trigger unlock:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
+// @desc    Lưu log nhiệt độ từ ESP32
+// @route   POST /api/security/temp-log
+exports.logTemperature = async (req, res) => {
+    try {
+        const { temp, humi } = req.body;
+        if (temp === undefined || humi === undefined) {
+            return res.status(400).json({ msg: 'Missing temperature or humidity' });
+        }
+
+        const newLog = await TempLog.create({
+            temperature: temp,
+            humidity: humi
+        });
+
+        res.status(201).json({ success: true, data: newLog });
+    } catch (error) {
+        console.error('Lỗi lưu Temp Log:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
+// @desc    Lấy lịch sử nhiệt độ (để vẽ biểu đồ)
+// @route   GET /api/security/temp-history
+exports.getTempHistory = async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 50;
+        const logs = await TempLog.find().sort({ timestamp: -1 }).limit(limit);
+        res.json({ success: true, data: logs });
+    } catch (error) {
+        console.error('Lỗi lấy Temp History:', error);
         res.status(500).json({ success: false, error: 'Server Error' });
     }
 };

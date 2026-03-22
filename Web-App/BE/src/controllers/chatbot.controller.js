@@ -1,15 +1,16 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const ollama = require("ollama").default;
 const { SecurityLog: Security } = require("../models/security.model");
 const Product = require("../models/product.model");
 const Order = require("../models/order.model");
 
-// Khoi tao Gemini
+// Khoi tao Gemini (Du phong)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 exports.askChatbot = async (req, res) => {
     try {
         const { question, history } = req.body;
-        const user = req.user; // Lay tu middleware auth (neu co)
+        const user = req.user; 
 
         if (!question) {
             return res.status(400).json({ message: "Vui lòng nhập câu hỏi." });
@@ -17,114 +18,78 @@ exports.askChatbot = async (req, res) => {
 
         const isAdmin = user && (user.role === 'admin' || user.role === 'staff');
 
-        // 1. Thiet lap System Prompt
-        const systemPrompt = `Bạn là trợ lý ảo thông minh của hệ thống "Smart Jewelry Vault".
-Vai trò của bạn: ${isAdmin ? 'Hỗ trợ Quản trị viên quản lý hệ thống và xem báo cáo.' : 'Nhân viên tư vấn khách hàng nhiệt tình.'}
-Ngôn ngữ: Tiếng Việt, thân thiện, chuyên nghiệp.
-[QUAN TRỌNG]: Khi người dùng hỏi về danh sách sản phẩm, giá tiền, mô tả OR lịch sử báo động an ninh OR đơn hàng, BẠN PHẢI GỌI FUNCTION (TOOLS) TƯƠNG ỨNG ĐỂ TÌM KIẾM DỮ LIỆU THỰC TẾ. KHÔNG ĐƯỢC TỰ BỊA RA THÔNG TIN!
-Chỉ trả lời ngắn gọn, dùng markdown để format (bold, list, emoji) cho đẹp mắt.`;
-
-        // 2. Thiet lap Tools (Function Calling)
-        const tools = [{
-            functionDeclarations: [
-                {
-                    name: "searchJewelryProducts",
-                    description: "Tìm kiếm danh sách sản phẩm trang sức có trong hệ thống khi khách hàng yêu cầu tư vấn hoặc hỏi giá.",
-                    parameters: {
-                        type: "OBJECT",
-                        properties: {
-                            keyword: {
-                                type: "STRING",
-                                description: "Từ khóa tra cứu (vd: dây chuyền, nhẫn, kim cương). Để trống lấy danh sách tổng hợp."
-                            }
-                        }
-                    }
-                }
-            ]
-        }];
-
-        // Cap quyen truy cap tool dac quyen cho Admin
-        if (isAdmin) {
-            tools[0].functionDeclarations.push({
-                name: "getRecentOrders",
-                description: "Lấy danh sách các đơn hàng mới nhất trên hệ thống.",
-                parameters: {
-                    type: "OBJECT", 
-                    properties: { 
-                        limit: { type: "INTEGER", description: "Số lượng lấy (mặc định 5)" } 
-                    }
-                }
-            });
-            tools[0].functionDeclarations.push({
-                name: "getSecurityLogs",
-                description: "Lấy lịch sử cảnh báo an ninh từ các thiết bị IoT và Camera Edge AI.",
-                parameters: {
-                    type: "OBJECT", 
-                    properties: { 
-                        limit: { type: "INTEGER", description: "Số lượng lấy (mặc định 10)" } 
-                    }
-                }
-            });
+        // 1. Lay du lieu tu MongoDB (Context) de tro giup AI tra loi dung thuc te
+        let localKnowledge = "";
+        try {
+            if (isAdmin) {
+                const logs = await Security.find().sort({ timestamp: -1 }).limit(5);
+                const orders = await Order.find().sort({ createdAt: -1 }).limit(3);
+                localKnowledge = `\n[DU LIEU HE THONG - CHI ADMIN THAY]\nLogs an ninh: ${JSON.stringify(logs)}\nDon hang moi: ${JSON.stringify(orders)}`;
+            } else {
+                const products = await Product.find({ isActive: true }).limit(5).select('name price');
+                localKnowledge = `\n[DANH SACH SAN PHAM CUA TIEM]: ${JSON.stringify(products)}`;
+            }
+        } catch (dbErr) {
+            console.error("DB Context Error:", dbErr);
         }
 
-        // 3. Chuyen doi history tu client sang format Gemini
+        const systemInstruction = `Bạn là trợ lý ảo của cửa hàng TRANG SỨC BẠC "Smart Jewelry Vault".
+[QUAY TRỌNG]: ĐÂY LÀ CỬA HÀNG TRANG SỨC BẠC, KHÔNG CÓ KIM CƯƠNG HAY VÀNG RÒ.
+Hãy DỰA TRÊN DANH SÁCH thực tế dưới đây để tư vấn. Nếu sản phẩm khách hỏi KHÔNG CÓ trong danh sách thì báo là hiện chưa có hàng.
+Ngôn ngữ: Tiếng Việt, thân thiện, ngắn gọn.
+Dữ liệu thực tế từ hệ thống: ${localKnowledge || "Hiện kho chưa có sản phẩm nào được nhập."}`;
+
+        console.log(`[DEBUG] Final AI Prompt: ${systemInstruction}`);
+
+        // 2. CHAY THU VOI OLLAMA (LOCAL AI) - UU TIEN SO 1
+        try {
+            console.log("[AI] Dang thu ket noi Ollama (Local)...");
+            
+            // Format history cho Ollama
+            const ollamaHistory = (history || []).map(msg => ({
+                role: msg.role === 'bot' ? 'assistant' : 'user',
+                content: msg.text
+            }));
+
+            const response = await ollama.chat({
+                model: 'gemma3:4b', // Khop voi model ban vua tai
+                messages: [
+                    { role: 'system', content: systemInstruction },
+                    ...ollamaHistory,
+                    { role: 'user', content: question }
+                ],
+                stream: false
+            });
+
+            if (response && response.message) {
+                console.log("[AI] Ollama tra loi thanh cong!");
+                return res.json({ answer: response.message.content });
+            }
+        } catch (ollamaErr) {
+            console.warn("[AI] Ollama chua san sang hoac loi, chuyen sang Gemini Fallback...");
+        }
+
+        // 3. NEU OLLAMA LOI -> CHAY VOI GEMINI (CLOUD AI) - DU PHONG
+        console.log("[AI] Dang su dung Gemini 2.5 Flash...");
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
+            systemInstruction: { parts: [{ text: systemInstruction }] }
+        });
+
         const geminiHistory = (history || []).map(msg => ({
-            role: msg.role === 'bot' ? 'model' : (msg.role || 'user'),
+            role: msg.role === 'bot' ? 'model' : 'user',
             parts: [{ text: msg.text }]
         }));
 
-        // 4. Khoi tao Model Gemini voi Tool Calling
-        const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
-            systemInstruction: { parts: [{ text: systemPrompt }] },
-            tools: tools
-        });
-
-        // 5. Thuc thi
         const chat = model.startChat({ history: geminiHistory });
-        let result = await chat.sendMessage(question);
-        
-        // --- XU LY KHI GEMINI YEU CAU GOI HAM (FUNCTION CALL) ---
-        const functionCalls = result.response.functionCalls();
-        if (functionCalls && functionCalls.length > 0) {
-            const call = functionCalls[0];
-            const name = call.name;
-            const args = call.args;
-            
-            console.log(`[Gemini Tool Called] Function: ${name}, Args:`, args);
-            let apiResponse = {};
-            
-            // Thuc thi cac ham tuong ung
-            if (name === "searchJewelryProducts") {
-                const query = args.keyword ? { name: { $regex: args.keyword, $options: 'i' } } : {};
-                const products = await Product.find({...query, isActive: true}).limit(5).select('name price description');
-                apiResponse = { data: products };
-            } 
-            else if (isAdmin && name === "getRecentOrders") {
-                const limit = args.limit || 5;
-                const orders = await Order.find().sort({ createdAt: -1 }).limit(limit).populate('user', 'name');
-                apiResponse = { data: orders };
-            } 
-            else if (isAdmin && name === "getSecurityLogs") {
-                const limit = args.limit || 10;
-                const logs = await Security.find().sort({ timestamp: -1 }).limit(limit);
-                apiResponse = { data: logs };
-            }
-
-            // Ghi nhan ket qua tra ve cho Gemini
-            result = await chat.sendMessage([{
-                functionResponse: {
-                    name: name,
-                    response: apiResponse
-                }
-            }]);
-        }
-
+        const result = await chat.sendMessage(question);
         const responseText = result.response.text();
+        
         res.json({ answer: responseText });
 
     } catch (error) {
-        console.error("Chatbot Error:", error);
+        console.error("Chatbot Overall Error:", error);
         res.status(500).json({ message: "Lỗi hệ thống chatbot.", error: error.message });
     }
 };
+

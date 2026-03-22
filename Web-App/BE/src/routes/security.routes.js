@@ -20,4 +20,10 @@ router.get('/unlock-status', securityController.checkUnlockStatus);
 // @route   POST /api/security/trigger-unlock
 router.post('/trigger-unlock', securityController.triggerUnlock);
 
+// @route   POST /api/security/temp-log
+router.post('/temp-log', securityController.logTemperature);
+
+// @route   GET /api/security/temp-history
+router.get('/temp-history', securityController.getTempHistory);
+
 module.exports = router;

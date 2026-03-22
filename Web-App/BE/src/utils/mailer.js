@@ -16,19 +16,26 @@ function createTransport() {
 }
 
 async function sendMail({ to, subject, html, text }) {
+  console.log(`[MAILER] Preparing to send email to: ${to}`);
   const transporter = createTransport();
   if (!transporter) {
-    // SMTP not configured: caller should handle fallback
+    console.error('[MAILER] SMTP not configured. Missing env variables.');
     return null;
   }
-  const info = await transporter.sendMail({
-    from: process.env.EMAIL_FROM || process.env.SMTP_USER,
-    to,
-    subject,
-    html,
-    text
-  });
-  return info;
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || process.env.SMTP_USER,
+      to,
+      subject,
+      html,
+      text
+    });
+    console.log('[MAILER] Email sent successfully:', info.messageId);
+    return info;
+  } catch (error) {
+    console.error('[MAILER] Sending failed:', error.message);
+    return null;
+  }
 }
 
 module.exports = { sendMail };

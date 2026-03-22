@@ -17,6 +17,8 @@ const addressRoutes = require('./address.routes');
 const couponRoutes = require('./coupon.routes');
 const vietqrRoutes = require('./vietqr.routes');
 const sepayRoutes = require('./sepay.routes');
+const wishlistRoutes = require('./wishlist.routes');
+const reviewRoutes = require('./review.routes');
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
@@ -33,6 +35,9 @@ router.use('/address', addressRoutes);
 router.use('/coupons', couponRoutes);
 router.use('/payment/vietqr', vietqrRoutes);
 router.use('/payment/sepay', sepayRoutes);
+router.use('/wishlist', wishlistRoutes);
+router.use('/reviews', reviewRoutes);
+router.use('/views', reviewRoutes); // Alias for Frontend component expectations
 router.use('/contact', require('./contact.routes'));
 router.use('/security', require('./security.routes'));
 
