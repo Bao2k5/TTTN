@@ -22,8 +22,7 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      // Dùng relative path để đi qua Vite proxy
-      const response = await axios.post('/api/auth/send-reset-code', { email });
+      const response = await axios.post(`${API_URL}/auth/send-reset-code`, { email });
       setMessage(response.data.message || 'Mã OTP đã được gửi đến email của bạn!');
       setStep(2);
     } catch (err) {
@@ -52,8 +51,7 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      // Dùng relative path để đi qua Vite proxy
-      const response = await axios.post('/api/auth/verify-reset-code', {
+      const response = await axios.post(`${API_URL}/auth/verify-reset-code`, {
         email,
         code: otp,
         newPassword
