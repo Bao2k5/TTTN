@@ -35,6 +35,8 @@ cloudinary.config(
 
 CLOUD_BACKEND = "https://hm-jewelry-api.onrender.com"
 API_URL = CLOUD_BACKEND + "/api/security/log"
+UNLOCK_URL = CLOUD_BACKEND + "/api/security/unlock"
+AUTHORIZED_USERS = ["Bao"] # Them ten cac nhan vien sếp muon cho phep mo khoa vao day
 RESET_ALARM_URL = CLOUD_BACKEND + "/api/security/reset-alarm"
 
 CAMERA_URL = 0 # Webcam laptop
@@ -191,7 +193,10 @@ class FaceRecognitionApp:
         self.tracked_identities = {}
         self.is_recording = False
         self.last_alert_time = 0
+        self.last_unlock_time = 0 
         self.alert_cooldown = 30 # 30 giay moi bao 1 lan de tranh SPAM
+        self.unlock_cooldown = 60 # 1 phut moi cho phep auto-unlock tiep
+        self.frame_buffer = [] # De luu lai may giay truoc khi alert
         self.load_known_faces()
 
     def load_known_faces(self):
@@ -225,7 +230,7 @@ class FaceRecognitionApp:
         self.video_label = tk.Label(self.display_frame, bg='black')
         self.video_label.pack(fill=tk.BOTH, expand=True)
 
-    def send_security_alert(self, frame, name="Stranger"):
+    def send_security_alert(self, current_frame, name="Stranger"):
         now = time.time()
         if now - self.last_alert_time < self.alert_cooldown or self.is_recording:
             return
@@ -233,38 +238,36 @@ class FaceRecognitionApp:
         self.last_alert_time = now
         self.is_recording = True
         
+        # Lay ban sao buffer hien tai de ghi video
+        record_buffer = list(self.frame_buffer)
+        
         def task():
             try:
-                print(f"[ALERT] Intrusion detected! Recording video...")
+                print(f"[ALERT] Intrusion detected! Saving video evidence...")
                 
-                # 1. Chụp ảnh nền làm bằng chứng nhanh
-                _, img_encoded = cv2.imencode('.jpg', frame)
+                # 1. Chup anh hien tai
+                _, img_encoded = cv2.imencode('.jpg', current_frame)
                 img_bytes = img_encoded.tobytes()
                 img_res = cloudinary.uploader.upload(img_bytes, folder="security_alerts")
                 img_url = img_res.get('secure_url')
                 
-                # 2. Quay video 5 giây (Giả lập buffer bằng cách lấy tiếp frames)
+                # 2. Tao video tu buffer (Tranh mo lai Camera gay loi trang man hinh)
                 video_filename = f"alert_{int(now)}.mp4"
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                h, w, _ = frame.shape
-                out = cv2.VideoWriter(video_filename, fourcc, 20.0, (w, h))
+                h, w, _ = current_frame.shape
+                out = cv2.VideoWriter(video_filename, fourcc, 10.0, (w, h)) # 10fps cho nhe
                 
-                cap = cv2.VideoCapture(CAMERA_URL)
-                for _ in range(100): # ~5 giay tai 20fps
-                    ret, v_frame = cap.read()
-                    if not ret: break
-                    v_frame = cv2.flip(v_frame, 1)
-                    out.write(v_frame)
+                for f in record_buffer:
+                    out.write(f)
                 out.release()
-                cap.release()
                 
-                # 3. Upload Video lên Cloudinary
+                # 3. Upload Video
                 print(f"[ALERT] Uploading video to Cloudinary...")
                 vid_res = cloudinary.uploader.upload(video_filename, folder="security_alerts", resource_type="video")
                 vid_url = vid_res.get('secure_url')
                 vid_id = vid_res.get('public_id')
                 
-                # 4. Gửi Log về Backend
+                # 4. Gui Log
                 payload = {
                     "type": "DANGER",
                     "title": "CẢNH BÁO XÂM NHẬP!",
@@ -275,9 +278,8 @@ class FaceRecognitionApp:
                     "videoPublicId": vid_id
                 }
                 requests.post(API_URL, json=payload, timeout=10)
-                print(f"[SUCCESS] Alert sent with Video: {vid_url}")
+                print(f"[SUCCESS] Alert sent: {vid_url}")
                 
-                # Dọn dẹp file tạm
                 if os.path.exists(video_filename): os.remove(video_filename)
                 
             except Exception as e:
@@ -287,6 +289,22 @@ class FaceRecognitionApp:
 
         threading.Thread(target=task, daemon=True).start()
 
+    def handle_face_unlock(self, name):
+        now = time.time()
+        if now - self.last_unlock_time < self.unlock_cooldown:
+            return
+        
+        if name in AUTHORIZED_USERS:
+            self.last_unlock_time = now
+            print(f"[ACCESS] Authorized User detected: {name}. Unlocking...")
+            try:
+                # Gui lenh mo khoa len Backend
+                requests.post(UNLOCK_URL, json={"reason": f"FaceID recognized: {name}"}, timeout=5)
+                # Sếp co the dung cac y tuong nhu Voice Assistant o day:
+                # print("Chào Chủ tịch, đang mở khóa...")
+            except Exception as e:
+                print(f"[ERROR] Unlock failed: {e}")
+
     def video_worker(self):
         cap = cv2.VideoCapture(CAMERA_URL)
         fence_box = (500, 50, 750, 300)
@@ -295,6 +313,11 @@ class FaceRecognitionApp:
             ret, frame = cap.read()
             if not ret: break
             frame = cv2.flip(frame, 1)
+            
+            # Update frame buffer (Luon luu khoang 50 frames cu ~ 5 giay)
+            self.frame_buffer.append(frame.copy())
+            if len(self.frame_buffer) > 50:
+                self.frame_buffer.pop(0)
 
             # 1. PHÁT HIỆN & TRACKING NGƯỜI BẰNG YOLO11 + BYTETRACK
             results = self.detector.track(frame, classes=[0], persist=True, tracker="bytetrack.yaml", verbose=False)[0]
@@ -347,6 +370,10 @@ class FaceRecognitionApp:
 
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                     cv2.putText(frame, f"ID:{track_id} {name}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                    
+                    # 🔑 TRIGGER FACE UNLOCK FOR STAFF
+                    if name in AUTHORIZED_USERS:
+                        self.handle_face_unlock(name)
 
                 # 🚀 TRIGGER ALERT IF STRANGER IN FENCE
                 if is_stranger_in_fence:
