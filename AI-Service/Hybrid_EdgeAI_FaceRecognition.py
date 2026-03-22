@@ -266,7 +266,7 @@ class FaceRecognitionApp:
                 
                 # 2. Tao video tu buffer
                 video_filename = f"alert_{int(now)}.mp4"
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                fourcc = cv2.VideoWriter_fourcc(*'XVID') # XVID cho tuong thich tot hon tren Windows
                 h, w, _ = current_frame_copy.shape
                 out = cv2.VideoWriter(video_filename, fourcc, 10.0, (w, h))
                 
@@ -277,11 +277,17 @@ class FaceRecognitionApp:
                         out.write(f)
                 out.release()
                 
-                # 3. Upload Video
-                print(f"[ALERT] Uploading video to Cloudinary...")
-                vid_res = cloudinary.uploader.upload(video_filename, folder="security_alerts", resource_type="video")
-                vid_url = vid_res.get('secure_url')
-                vid_id = vid_res.get('public_id')
+                # 3. Kiem tra file ton tai va khong rong truoc khi upload
+                if not os.path.exists(video_filename) or os.path.getsize(video_filename) < 1000:
+                    print(f"[ERROR] Video file is missing or too small to be valid.")
+                    vid_url = None
+                    vid_id = None
+                else:
+                    # 4. Upload Video
+                    print(f"[ALERT] Uploading video to Cloudinary...")
+                    vid_res = cloudinary.uploader.upload(video_filename, folder="security_alerts", resource_type="video")
+                    vid_url = vid_res.get('secure_url')
+                    vid_id = vid_res.get('public_id')
                 
                 # 4. Gui Log
                 payload = {
