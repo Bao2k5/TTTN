@@ -252,6 +252,7 @@ const AdminDashboard = () => {
                       </p>
                       <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded tracking-tighter ${
                         order.status === 'completed' ? 'bg-green-50 text-green-600' :
+                        order.status === 'paid' ? 'bg-emerald-50 text-emerald-600' :
                         order.status === 'processing' ? 'bg-blue-50 text-blue-600' :
                         order.status === 'pending' ? 'bg-luxury-sand text-luxury-brown' :
                         'bg-gray-50 text-gray-400'

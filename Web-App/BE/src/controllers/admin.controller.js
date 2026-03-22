@@ -142,7 +142,7 @@ exports.getStats = async (req, res) => {
     console.log('Admin Stats Debug:', { totalUsers, totalOrders, totalProducts, pendingOrders, shippingOrders, outOfStock, newReviews });
 
     const revenueAgg = await Order.aggregate([
-      { $match: { status: { $in: ['paid', 'completed', 'shipped'] } } },
+      { $match: { status: { $in: ['paid', 'completed', 'shipped', 'processing'] } } },
       { $group: { _id: null, revenue: { $sum: '$total' } } }
     ]);
     const revenue = revenueAgg.length ? revenueAgg[0].revenue : 0;
