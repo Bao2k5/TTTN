@@ -40,38 +40,7 @@ RESET_ALARM_URL = CLOUD_BACKEND + "/api/security/reset-alarm"
 
 CAMERA_URL = 0 # Webcam laptop
 
-HAS_MEDIAPIPE = False
-try:
-    import mediapipe as mp
-    mp_hands = mp.solutions.hands
-    mp_drawing = mp.solutions.drawing_utils
-    HAS_MEDIAPIPE = True
-except:
-    pass
 
-class HandDetector:
-    def __init__(self):
-        if HAS_MEDIAPIPE:
-            self.mp_hands = mp_hands
-            self.mp_draw = mp_drawing
-            self.hands = self.mp_hands.Hands(max_num_hands=2, min_detection_confidence=0.5)
-        else:
-            self.hands = None
-
-    def check_intrusion(self, img, fence_box):
-        if not self.hands: return False
-        x_min, y_min, x_max, y_max = fence_box
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        res = self.hands.process(img_rgb)
-        
-        if res.multi_hand_landmarks:
-            for hand_lms in res.multi_hand_landmarks:
-                h, w, c = img.shape
-                x = int(hand_lms.landmark[8].x * w)
-                y = int(hand_lms.landmark[8].y * h)
-                if x_min < x < x_max and y_min < y < y_max:
-                    return True
-        return False
 
 class FaceRegistrationWindow:
     def __init__(self, parent, name, detector, callback):
@@ -176,7 +145,6 @@ class FaceRecognitionApp:
             self.face_app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
             self.face_app.prepare(ctx_id=0, det_size=(640, 640))
         
-        self.hand_detector = HandDetector()
         
         self.mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
         self.client = MongoClient(self.mongo_uri, serverSelectionTimeoutMS=2000)
@@ -191,7 +159,15 @@ class FaceRecognitionApp:
         # TRACKING CACHE: track_id -> name (To avoid running FaceNet every frame)
         self.tracked_identities = {}
         self.authorized_users = set() # Danh sach nhan vien duoc mo khoa (Dynamic)
-        self.is_recording = False
+        
+        # --- NGHIỆP VỤ SECURITY RECORDING (Pre-roll + Event + Post-roll) ---
+        self.is_recording_event = False
+        self.active_event_frames = []
+        self.post_roll_count = 0
+        self.MAX_FRAMES = 150 # Tối đa quay 15s (150 frames) để upload nhanh
+        self.current_alert_name = "Stranger"
+        self.trigger_image = None
+        
         self.last_alert_time = 0
         self.last_unlock_time = 0 
         self.alert_cooldown = 30 
@@ -242,72 +218,82 @@ class FaceRecognitionApp:
         self.video_label = tk.Label(self.display_frame, bg='black')
         self.video_label.pack(fill=tk.BOTH, expand=True)
 
-    def send_security_alert(self, name="Stranger"):
+    def process_and_upload_event(self, frames_to_upload, name, alert_img):
         now = time.time()
-        if now - self.last_alert_time < self.alert_cooldown or self.is_recording or self.current_frame is None:
-            return
         
-        self.last_alert_time = now
-        self.is_recording = True
+        # --- BƯỚC 1: CẢNH BÁO TỨC THÌ (Fast-Path) ---
+        print(f"[ALERT] Phát hiện xâm nhập! Gửi cảnh báo tức thì lên Web/App...")
         
-        # Lay 50 frames cu tu buffer
-        record_buffer = list(self.frame_buffer)
-        current_frame_copy = self.current_frame.copy()
-        
+        try:
+            # Chỉ nén và up 1 tấm ảnh duy nhất để tăng tốc độ phát còi (mất ~0.5s)
+            _, img_encoded = cv2.imencode('.jpg', alert_img)
+            img_bytes = img_encoded.tobytes()
+            img_res = cloudinary.uploader.upload(img_bytes, folder="security_alerts")
+            img_url = img_res.get('secure_url')
+            
+            payload = {
+                "type": "DANGER",
+                "title": "CẢNH BÁO XÂM NHẬP!",
+                "message": f"Phát hiện {name} đang tiếp cận quầy trang sức!",
+                "detectedName": name,
+                "imageUrl": img_url,
+                "videoUrl": None,
+                "videoPublicId": None
+            }
+            res = requests.post(API_URL, json=payload, timeout=5)
+            log_id = None
+            if res.status_code == 201:
+                log_id = res.json().get('data', {}).get('_id')
+                print(f"[SUCCESS] Chuông đã kêu! Log ID: {log_id}")
+        except Exception as e:
+            print(f"[ERROR] Immediate alert failed: {e}")
+            log_id = None
+
+        # --- BƯỚC 2: RENDER VIDEO VÀ CẬP NHẬT SAU (Slow-Path ở Background) ---
         def task():
+            if not log_id: return # Nếu log ban đầu gửi lỗi, không có ID để update
+            
             try:
-                print(f"[ALERT] Intrusion detected! Saving video evidence...")
+                print(f"[INFO] Bắt đầu render video {len(frames_to_upload)} frames ở chế độ chạy ngầm...")
                 
-                # 1. Chup anh hien tai
-                _, img_encoded = cv2.imencode('.jpg', current_frame_copy)
-                img_bytes = img_encoded.tobytes()
-                img_res = cloudinary.uploader.upload(img_bytes, folder="security_alerts")
-                img_url = img_res.get('secure_url')
-                
-                # 2. Tao video tu buffer
+                # Tao video tu danh sach frames
                 video_filename = f"alert_{int(now)}.mp4"
-                fourcc = cv2.VideoWriter_fourcc(*'XVID') # XVID cho tuong thich tot hon tren Windows
-                h, w, _ = current_frame_copy.shape
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v') # mp4v cho MP4
+                h, w, _ = frames_to_upload[0].shape
                 out = cv2.VideoWriter(video_filename, fourcc, 10.0, (w, h))
                 
-                if not record_buffer:
-                    out.write(current_frame_copy)
-                else:
-                    for f in record_buffer:
-                        out.write(f)
+                for f in frames_to_upload:
+                    out.write(f)
                 out.release()
                 
-                # 3. Kiem tra file ton tai va khong rong truoc khi upload
                 if not os.path.exists(video_filename) or os.path.getsize(video_filename) < 1000:
-                    print(f"[ERROR] Video file is missing or too small to be valid.")
-                    vid_url = None
-                    vid_id = None
-                else:
-                    # 4. Upload Video
-                    print(f"[ALERT] Uploading video to Cloudinary...")
-                    vid_res = cloudinary.uploader.upload(video_filename, folder="security_alerts", resource_type="video")
-                    vid_url = vid_res.get('secure_url')
-                    vid_id = vid_res.get('public_id')
+                    print(f"[ERROR] Video file is missing or too small.")
+                    return
                 
-                # 4. Gui Log
-                payload = {
-                    "type": "DANGER",
-                    "title": "CẢNH BÁO XÂM NHẬP!",
-                    "message": f"Phát hiện {name} đang tiếp cận quầy trang sức!",
-                    "detectedName": name,
-                    "imageUrl": img_url,
-                    "videoUrl": vid_url,
-                    "videoPublicId": vid_id
-                }
-                requests.post(API_URL, json=payload, timeout=10)
-                print(f"[SUCCESS] Alert sent: {vid_url}")
+                print(f"[INFO] Uploading Video bằng chứng lên Cloudinary...")
+                vid_res = cloudinary.uploader.upload(video_filename, folder="security_alerts", resource_type="video")
+                vid_url = vid_res.get('secure_url')
+                vid_id = vid_res.get('public_id')
+                
+                # Force Cloudinary to transcode video to web-playable H.264 mp4 format dynamically
+                if vid_url: 
+                    vid_url = vid_url.replace('/upload/', '/upload/f_mp4,vc_auto/')
                 
                 if os.path.exists(video_filename): os.remove(video_filename)
                 
+                if vid_url:
+                    # Gọi API PUT để Update log
+                    put_url = f"{API_URL}/{log_id}"
+                    put_payload = {
+                        "videoUrl": vid_url,
+                        "videoPublicId": vid_id
+                    }
+                    update_res = requests.put(put_url, json=put_payload, timeout=10)
+                    if update_res.status_code == 200:
+                        print(f"[SUCCESS] Đã đính kèm video vào cảnh báo {log_id}")
+                    
             except Exception as e:
-                print(f"[ERROR] Alert failed: {e}")
-            finally:
-                self.is_recording = False
+                print(f"[ERROR] Background video task failed: {e}")
 
         threading.Thread(target=task, daemon=True).start()
 
@@ -387,16 +373,44 @@ class FaceRecognitionApp:
                     else:
                         color = (0, 255, 0) # Xanh
                         self.is_staff_present = True
-                        if name in AUTHORIZED_USERS:
+                        if name in self.authorized_users:
                             self.handle_face_unlock(name)
 
                     # Draw Result
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                     cv2.putText(frame, f"ID:{track_id} {name}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
-            # 4. TRIGGER ALERT IF STRANGER IN FENCE
+            # 4. STATE MACHINE FOR RECORDING EVENT (Pre-roll + Action + Post-roll)
             if is_stranger_in_fence:
-                self.send_security_alert("Stranger")
+                if not self.is_recording_event:
+                    now = time.time()
+                    if now - self.last_alert_time >= self.alert_cooldown: # Chỉ bắt đầu khi hết cooldown
+                        print("[EVENT] Cảnh báo xâm nhập! Bắt đầu trích xuất camera...")
+                        self.is_recording_event = True
+                        self.active_event_frames = list(self.frame_buffer) # 50 pre-roll frames
+                        self.post_roll_count = 0
+                        self.current_alert_name = "Stranger"
+                        # Luôn nhớ cái frame ngay lúc vừa bị phát hiện làm ảnh báo động
+                        self.trigger_image = frame.copy()
+                else:
+                    self.active_event_frames.append(frame.copy())
+                    self.post_roll_count = 0 # Trạng thái Action liên tục reset post-roll
+                    if len(self.active_event_frames) >= self.MAX_FRAMES:
+                        # Max cap reached
+                        self.process_and_upload_event(self.active_event_frames, self.current_alert_name, self.trigger_image)
+                        self.is_recording_event = False
+                        self.last_alert_time = time.time()
+                        self.active_event_frames = []
+            else:
+                if self.is_recording_event:
+                    self.active_event_frames.append(frame.copy())
+                    self.post_roll_count += 1
+                    # Kết thúc khi đủ 5s (50 frames) Post-roll HOẶC đạt giới hạn MAX_FRAMES
+                    if self.post_roll_count >= 50 or len(self.active_event_frames) >= self.MAX_FRAMES:
+                        self.process_and_upload_event(self.active_event_frames, self.current_alert_name, self.trigger_image)
+                        self.is_recording_event = False
+                        self.last_alert_time = time.time()
+                        self.active_event_frames = []
 
             # 5. DRAW FENCE
             color_fence = (0, 0, 255) if is_stranger_in_fence else (0, 255, 0)

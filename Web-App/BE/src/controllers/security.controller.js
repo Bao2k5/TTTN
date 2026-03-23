@@ -4,6 +4,30 @@ const TempLog = require('../models/tempLog.model');
 // UNLOCK STATE KEY - dùng singleton pattern trong MongoDB
 const UNLOCK_STATE_KEY = 'door-unlock-state';
 
+// @route   PUT /api/security/log/:id
+exports.updateLog = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+        const io = req.app.get('socketio');
+
+        const updatedLog = await SecurityLog.findByIdAndUpdate(id, updateData, { new: true });
+        
+        if (!updatedLog) {
+            return res.status(404).json({ success: false, message: 'Log not found' });
+        }
+
+        if (io) {
+            io.emit('update-alert', updatedLog);
+        }
+
+        res.json({ success: true, data: updatedLog });
+    } catch (error) {
+        console.error('Lỗi khi cập nhật Security Log:', error);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
 // @desc    Nhận log từ Python Edge AI và phát cảnh báo
 // @route   POST /api/security/log
 exports.createLog = async (req, res) => {

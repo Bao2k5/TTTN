@@ -8,6 +8,9 @@ router.post('/log', securityController.createLog);
 // @route   GET /api/security/logs
 router.get('/logs', securityController.getLogs);
 
+// @route   PUT /api/security/log/:id
+router.put('/log/:id', securityController.updateLog);
+
 // @route   GET /api/security/alert-status
 router.get('/alert-status', securityController.checkAlertStatus);
 

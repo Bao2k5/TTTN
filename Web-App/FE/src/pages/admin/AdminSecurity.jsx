@@ -111,6 +111,17 @@ const AdminSecurity = () => {
             }
         });
 
+        socket.on('update-alert', (updatedLog) => {
+            setLogs(prev => prev.map(log => log._id === updatedLog._id ? updatedLog : log));
+            
+            setCurrentAlert(prev => {
+                if (prev && prev._id === updatedLog._id) {
+                    return { ...prev, ...updatedLog };
+                }
+                return prev;
+            });
+        });
+
         socket.on('alarm-resolved', () => {
             setAlarmActive(false);
             setCurrentAlert(null);
