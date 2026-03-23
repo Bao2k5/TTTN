@@ -72,8 +72,8 @@ Preferences prefs; // Để lưu AI_SERVICE_IP vào flash
 bool isProcessing = false;
 unsigned long lastScanTime = 0;
 unsigned long lastPollTime = 0;
-#define SCAN_INTERVAL 3000  // Auto-scan mỗi 3 giây (fallback)
-#define POLL_INTERVAL 2000  // Poll BE mỗi 2 giây xem Admin có bấm nút chưa
+#define SCAN_INTERVAL 1500  // Auto-scan mỗi 1.5 giây
+#define POLL_INTERVAL 1000  // Poll BE mỗi 1 giây xem Admin có bấm nút chưa
 
 
 bool initCamera() {
@@ -207,8 +207,8 @@ void scanFaceAndUnlock() {
 
   http.end();
   
-  // 5. Cooldown 3 giây trước khi cho quét lại
-  delay(3000);
+  // 5. Cooldown 1 giây trước khi cho quét lại
+  delay(1000);
   isProcessing = false;
   Serial.println("[SCAN] === Sẵn sàng quét lại ===\n");
 }

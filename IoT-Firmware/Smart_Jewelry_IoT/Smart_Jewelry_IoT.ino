@@ -54,7 +54,7 @@ unsigned long lastVibrationReset = 0;
 int vibrationCount = 0;
 unsigned long vibrationWindowStart = 0;
 
-#define API_INTERVAL 1000
+#define API_INTERVAL 300   // Poll unlock/alert API mỗi 300ms để mở tủ nhanh hơn
 #define BUZZER_SPEED 50
 #define SPOTLIGHT_TIME 15000
 
