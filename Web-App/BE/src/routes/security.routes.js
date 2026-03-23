@@ -29,4 +29,10 @@ router.post('/temp-log', securityController.logTemperature);
 // @route   GET /api/security/temp-history
 router.get('/temp-history', securityController.getTempHistory);
 
+// @route   POST /api/security/face-scan-trigger  (Admin kích hoạt quét mặt)
+router.post('/face-scan-trigger', securityController.triggerFaceScan);
+
+// @route   GET /api/security/face-scan-status  (ESP32-CAM poll)
+router.get('/face-scan-status', securityController.checkFaceScanStatus);
+
 module.exports = router;

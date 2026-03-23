@@ -236,3 +236,61 @@ exports.getTempHistory = async (req, res) => {
         res.status(500).json({ success: false, error: 'Server Error' });
     }
 };
+// @desc    Admin kích hoạt yêu cầu quét khuôn mặt
+// @route   POST /api/security/face-scan-trigger
+exports.triggerFaceScan = async (req, res) => {
+    try {
+        // Lưu trạng thái "cần quét mặt" vào MongoDB (timeout 30s)
+        await SystemState.findOneAndUpdate(
+            { key: 'face-scan-state' },
+            { shouldScan: true, scanAt: new Date() },
+            { upsert: true, new: true }
+        );
+
+        // Tự động hủy lệnh sau 30 giây nếu ESP32-CAM không nhận
+        setTimeout(async () => {
+            try {
+                await SystemState.findOneAndUpdate(
+                    { key: 'face-scan-state' },
+                    { shouldScan: false, scanAt: null }
+                );
+            } catch (err) { /* ignore */ }
+        }, 30000);
+
+        res.json({ success: true, message: 'Face scan triggered. ESP32-CAM will scan in next cycle.' });
+    } catch (error) {
+        console.error('Lỗi trigger face scan:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
+    }
+};
+
+// @desc    ESP32-CAM poll để kiểm tra có cần quét mặt không
+// @route   GET /api/security/face-scan-status
+exports.checkFaceScanStatus = async (req, res) => {
+    try {
+        const state = await SystemState.findOne({ key: 'face-scan-state' });
+
+        if (state && state.shouldScan && state.scanAt) {
+            const elapsed = Date.now() - new Date(state.scanAt).getTime();
+            if (elapsed > 30000) {
+                // Hết hạn 30 giây
+                await SystemState.findOneAndUpdate(
+                    { key: 'face-scan-state' },
+                    { shouldScan: false, scanAt: null }
+                );
+                return res.json({ shouldScan: false });
+            }
+            // Reset ngay sau khi ESP32-CAM nhận lệnh (one-shot)
+            await SystemState.findOneAndUpdate(
+                { key: 'face-scan-state' },
+                { shouldScan: false, scanAt: null }
+            );
+            return res.json({ shouldScan: true });
+        }
+
+        res.json({ shouldScan: false });
+    } catch (error) {
+        console.error('Lỗi check face scan:', error);
+        res.json({ shouldScan: false });
+    }
+};

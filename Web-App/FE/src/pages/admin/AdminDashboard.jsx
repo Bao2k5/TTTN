@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { api } from '../../services/api';
@@ -16,6 +16,13 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [tempHistory, setTempHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // --- FACE ID UNLOCK STATE ---
+  const [faceIdState, setFaceIdState] = useState('idle'); // idle | scanning | success | fail
+  const [countdown, setCountdown] = useState(30);
+  const pollRef = useRef(null);
+  const countdownRef = useRef(null);
+  // ----------------------------
 
   useEffect(() => {
     loadAllData();
@@ -48,7 +55,6 @@ const AdminDashboard = () => {
     try {
       const response = await api.get('/security/temp-history?limit=24');
       if (response.data?.success) {
-        // Reverse to show oldest to newest for the chart
         const formattedData = response.data.data.reverse().map(item => ({
           ...item,
           time: new Date(item.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
@@ -60,6 +66,56 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error('Error loading temp history:', error);
     }
+  };
+
+  // Kích hoạt Face ID scan
+  const triggerFaceIdUnlock = async () => {
+    try {
+      await api.post('/security/face-scan-trigger');
+      setFaceIdState('scanning');
+      setCountdown(30);
+
+      // Đếm ngược 30 giây
+      countdownRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      // Poll unlock-status mỗi 2 giây để biết khi nào mở được
+      pollRef.current = setInterval(async () => {
+        try {
+          const res = await api.get('/security/unlock-status');
+          if (res.data?.shouldUnlock) {
+            clearInterval(pollRef.current);
+            clearInterval(countdownRef.current);
+            setFaceIdState('success');
+            setTimeout(() => setFaceIdState('idle'), 4000);
+          }
+        } catch { /* ignore */ }
+      }, 2000);
+
+      // Timeout 32 giây: nếu không mở được thì báo fail
+      setTimeout(() => {
+        clearInterval(pollRef.current);
+        clearInterval(countdownRef.current);
+        setFaceIdState(prev => prev === 'scanning' ? 'fail' : prev);
+        setTimeout(() => setFaceIdState('idle'), 3000);
+      }, 32000);
+
+    } catch (error) {
+      console.error('Face scan trigger error:', error);
+    }
+  };
+
+  const cancelFaceScan = () => {
+    clearInterval(pollRef.current);
+    clearInterval(countdownRef.current);
+    setFaceIdState('idle');
   };
 
   if (loading) {
@@ -290,7 +346,20 @@ const AdminDashboard = () => {
               </div>
             </div>
             
-            <Link to="/admin/security" className="mt-6 flex items-center justify-between p-4 bg-luxury-charcoal text-white rounded-xl hover:bg-luxury-black transition-all group">
+            {/* === NÚT MỞ TỦ FACEID === */}
+            <button
+              id="btn-faceid-unlock"
+              onClick={triggerFaceIdUnlock}
+              disabled={faceIdState !== 'idle'}
+              className="mt-4 w-full flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-luxury-brown to-amber-700 text-white rounded-xl hover:from-amber-700 hover:to-luxury-brown transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl group"
+            >
+              <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              <span className="text-sm font-semibold tracking-widest uppercase">Mở Tủ — Quét FaceID</span>
+            </button>
+
+            <Link to="/admin/security" className="mt-3 flex items-center justify-between p-4 bg-luxury-charcoal text-white rounded-xl hover:bg-luxury-black transition-all group">
                <span className="text-sm font-light tracking-widest uppercase">Giám sát An ninh Camera</span>
                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
@@ -299,6 +368,73 @@ const AdminDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* === MODAL FACE ID === */}
+      {faceIdState !== 'idle' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-10 w-96 shadow-2xl flex flex-col items-center gap-6 animate-fade-in">
+
+            {faceIdState === 'scanning' && (
+              <>
+                {/* Vòng tròn countdown animation */}
+                <div className="relative w-36 h-36">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="#f3f4f6" strokeWidth="8" />
+                    <circle
+                      cx="50" cy="50" r="45" fill="none"
+                      stroke="#92400e" strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 45}`}
+                      strokeDashoffset={`${2 * Math.PI * 45 * (1 - countdown / 30)}`}
+                      className="transition-all duration-1000"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <svg className="w-10 h-10 text-luxury-brown mb-1 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    <span className="text-2xl font-bold text-luxury-brown">{countdown}s</span>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <h3 className="font-display text-xl text-luxury-black tracking-wide uppercase mb-2">Đang chờ FaceID</h3>
+                  <p className="text-sm text-luxury-gray font-light">ESP32-CAM đang quét khuôn mặt của bạn.<br/>Hãy nhìn thẳng vào camera tủ.</p>
+                </div>
+                <button onClick={cancelFaceScan} className="text-xs text-luxury-gray hover:text-red-500 uppercase tracking-widest transition-colors">Hủy</button>
+              </>
+            )}
+
+            {faceIdState === 'success' && (
+              <>
+                <div className="w-24 h-24 rounded-full bg-green-50 flex items-center justify-center">
+                  <svg className="w-14 h-14 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="text-center">
+                  <h3 className="font-display text-xl text-green-600 uppercase tracking-wide mb-1">Xác thực thành công!</h3>
+                  <p className="text-sm text-luxury-gray font-light">Tủ đã được mở — tự động khóa sau 10 giây.</p>
+                </div>
+              </>
+            )}
+
+            {faceIdState === 'fail' && (
+              <>
+                <div className="w-24 h-24 rounded-full bg-red-50 flex items-center justify-center">
+                  <svg className="w-14 h-14 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="text-center">
+                  <h3 className="font-display text-xl text-red-600 uppercase tracking-wide mb-1">Không nhận diện được</h3>
+                  <p className="text-sm text-luxury-gray font-light">Khuôn mặt không khớp hoặc camera bị che khuất.</p>
+                </div>
+              </>
+            )}
+
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };

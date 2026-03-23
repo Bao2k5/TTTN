@@ -65,8 +65,8 @@ _Mục đích: Điểm nhấn công nghệ (Edge AI + IoT) - Active Defense._
   - _Database_: MongoDB Atlas.
   - _Deploy_: Render.
 - **Auth**: JWT, Passport (Google/Facebook).
-- **Payment**: Stripe, VNPay, SePay (VietQR), COD.
-- **AI Chatbot**: Google Gemini 1.5 Flash API (multi-turn conversation, context-aware).
+- **Payment**: Stripe, SePay (BIDV VietQR động), COD.
+- **AI Chatbot**: Mô hình Kép (Google Gemini 1.5 Flash + Local Ollama Llama/Mistral).
 
 ### AI/Edge AI Service (Đã triển khai ✅)
 

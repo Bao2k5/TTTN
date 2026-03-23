@@ -124,6 +124,22 @@ void sendSensorData()
 
     Blynk.virtualWrite(V5, isDoorOpen ? 255 : 0);
 
+    // Gửi dữ liệu nhiệt độ/độ ẩm lên backend để lưu DB
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      HTTPClient http;
+      http.setTimeout(3000);
+      http.begin("https://hm-jewelry-api.onrender.com/api/security/temp-log");
+      http.addHeader("Content-Type", "application/json");
+      String body = "{\"temp\":" + String(temp, 1) + ",\"humi\":" + String(humi, 1) + "}";
+      int code = http.POST(body);
+      if (code > 0)
+        Serial.printf("[TEMP-LOG] POST -> %d\n", code);
+      else
+        Serial.printf("[TEMP-LOG] POST FAIL: %d\n", code);
+      http.end();
+    }
+
     if (temp >= 28.0 || manualCooling)
     {
       digitalWrite(PELTIER_PIN, LOW);
@@ -146,6 +162,7 @@ void sendSensorData()
     }
   }
 }
+
 
 void setup()
 {
@@ -318,7 +335,7 @@ void loop()
       if (vibrationCount == 0)
         vibrationWindowStart = millis();
       vibrationCount++;
-      if (vibrationCount >= 10 && (millis() - vibrationWindowStart < 500))
+      if (vibrationCount >= 30 && (millis() - vibrationWindowStart < 300))
       {
         if (!isVibration)
         {

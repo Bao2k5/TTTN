@@ -38,7 +38,11 @@ API_URL = CLOUD_BACKEND + "/api/security/log"
 UNLOCK_URL = CLOUD_BACKEND + "/api/security/trigger-unlock"
 RESET_ALARM_URL = CLOUD_BACKEND + "/api/security/reset-alarm"
 
-CAMERA_URL = 0 # Webcam laptop
+# Camera CCTV: webcam laptop (thay thế camera trên nóc CCTV)
+CAMERA_SOURCE = "webcam"
+CAMERA_URL = 0  # Webcam laptop - index 0
+# Nếu có nhiều webcam, thử index 1, 2...
+print("[CAM] CCTV: Webcam Laptop (index 0)")
 
 
 
@@ -50,7 +54,10 @@ class FaceRegistrationWindow:
         self.name = name
         self.detector = detector
         self.callback = callback
-        self.cap = cv2.VideoCapture(CAMERA_URL)
+        if CAMERA_SOURCE == "esp32cam":
+            self.cap = None  # Sẽ fetch ảnh qua HTTP /capture
+        else:
+            self.cap = cv2.VideoCapture(CAMERA_URL)
         self.is_running = True
         self.images_captured = 0
         self.total_needed = 20
@@ -73,7 +80,8 @@ class FaceRegistrationWindow:
     def camera_worker(self):
         while self.is_running:
             ret, frame = self.cap.read()
-            if not ret: break
+            if not ret:
+                break
             frame = cv2.flip(frame, 1)
             h, w, _ = frame.shape
             
@@ -110,7 +118,8 @@ class FaceRegistrationWindow:
                 self.is_running = False
                 break
                 
-        self.cap.release()
+        if self.cap is not None:
+            self.cap.release()
 
     def update_ui_loop(self):
         if not self.is_running:
@@ -564,4 +573,96 @@ class FaceRecognitionApp:
 if __name__ == "__main__":
     root = tk.Tk()
     app = FaceRecognitionApp(root)
+
+    # ============================================================
+    # FACE-VERIFY HTTP SERVER (Port 5001)
+    # ESP32-CAM sẽ POST ảnh JPEG đến: http://IP_LAPTOP:5001/face-verify
+    # Server nhận diện và trả về: { "matched": true/false, "name": "..." }
+    # ============================================================
+    try:
+        from flask import Flask, request, jsonify
+        flask_app = Flask(__name__)
+
+        @flask_app.route('/face-verify', methods=['POST'])
+        def face_verify():
+            """Nhận ảnh JPEG từ ESP32-CAM, nhận diện khuôn mặt, trả kết quả."""
+            try:
+                img_data = request.get_data()
+                if not img_data:
+                    return jsonify({"matched": False, "name": "No image", "error": "Empty body"}), 400
+
+                img_array = np.frombuffer(img_data, np.uint8)
+                frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+
+                if frame is None:
+                    return jsonify({"matched": False, "name": "Unknown", "error": "Cannot decode image"}), 400
+
+                print(f"[FACE-VERIFY] Nhận ảnh từ ESP32-CAM: {frame.shape}")
+
+                # Kiểm tra classifier đã sẵn sàng chưa (phải đăng ký nhân viên trước)
+                if app.classifier is None or not INSIGHTFACE_AVAILABLE:
+                    return jsonify({"matched": False, "name": "Chưa đăng ký nhân viên nào"}), 200
+
+                # Nhận diện khuôn mặt bằng InsightFace
+                faces = app.face_app.get(frame)
+                if len(faces) == 0:
+                    print("[FACE-VERIFY] Không phát hiện khuôn mặt trong ảnh!")
+                    return jsonify({"matched": False, "name": "No face detected"}), 200
+
+                face = faces[0]
+                emb = face.embedding
+                emb = emb / np.linalg.norm(emb)
+
+                distances, _ = app.classifier.kneighbors([emb])
+                dist = distances[0][0]
+
+                if dist < 1.3:  # Ngưỡng nhận diện InsightFace
+                    label_idx = app.classifier.predict([emb])[0]
+                    name = app.encoder.inverse_transform([label_idx])[0]
+                    is_authorized = name in app.authorized_users
+
+                    print(f"[FACE-VERIFY] ✅ Nhận diện: {name} (dist={dist:.3f}, authorized={is_authorized})")
+
+                    if is_authorized:
+                        # Tự động gọi trigger-unlock lên cloud BE
+                        def do_unlock():
+                            try:
+                                requests.post(UNLOCK_URL, json={"reason": f"FaceID ESP32CAM: {name}"}, timeout=5)
+                                print(f"[FACE-VERIFY] 🔓 Lệnh mở khóa đã gửi cho: {name}")
+                            except Exception as e:
+                                print(f"[FACE-VERIFY] Lỗi gửi trigger-unlock: {e}")
+                        threading.Thread(target=do_unlock, daemon=True).start()
+
+                    return jsonify({"matched": is_authorized, "name": name, "distance": round(dist, 3)}), 200
+                else:
+                    print(f"[FACE-VERIFY] ❌ Không nhận diện được (dist={dist:.3f} > ngưỡng 1.3)")
+                    return jsonify({"matched": False, "name": "Stranger", "distance": round(dist, 3)}), 200
+
+            except Exception as e:
+                print(f"[FACE-VERIFY] Lỗi: {e}")
+                return jsonify({"matched": False, "name": "Error", "error": str(e)}), 500
+
+        @flask_app.route('/health', methods=['GET'])
+        def health():
+            return jsonify({"status": "ok", "classifier_ready": app.classifier is not None}), 200
+
+        def run_flask():
+            import logging
+            log = logging.getLogger('werkzeug')
+            log.setLevel(logging.ERROR)  # Ẩn log verbose của Flask
+            flask_app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)
+
+        flask_thread = threading.Thread(target=run_flask, daemon=True)
+        flask_thread.start()
+        print("=" * 50)
+        print("[FACE-VERIFY] HTTP Server khởi động tại port 5001")
+        print("[FACE-VERIFY] ESP32-CAM POST ảnh đến: http://<IP_LAPTOP>:5001/face-verify")
+        print("[FACE-VERIFY] Kiểm tra: http://<IP_LAPTOP>:5001/health")
+        print("=" * 50)
+
+    except ImportError:
+        print("[WARNING] Flask chưa được cài. Face-Verify server không khởi động.")
+        print("[WARNING] Cài đặt: pip install flask")
+
     root.mainloop()
+
