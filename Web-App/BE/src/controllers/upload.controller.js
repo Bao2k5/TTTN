@@ -4,18 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Lazy load S3 utilities only when needed
-let s3Utils = null;
-const getS3Utils = () => {
-  if (!s3Utils && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_BUCKET_NAME) {
-    try {
-      s3Utils = require('../utils/s3');
-    } catch (e) {
-      console.warn('AWS S3 SDK not installed, S3 upload disabled');
-    }
-  }
-  return s3Utils;
-};
+
 
 // Configure multer for local storage
 const localStorage = multer.diskStorage({
@@ -49,7 +38,7 @@ const localUpload = multer({
 });
 
 // Choose upload method based on configuration
-const upload = (process.env.CLOUDINARY_CLOUD_NAME || process.env.AWS_BUCKET_NAME) ?
+const upload = process.env.CLOUDINARY_CLOUD_NAME ?
   multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 },
@@ -71,18 +60,8 @@ exports.uploadImage = async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    // UTILS: Chọn Storage Service (Ưu tiên AWS S3 > Cloudinary > Local)
-    const s3 = getS3Utils();
-    if (s3 && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_BUCKET_NAME) {
-         // --- AWS S3 UPLOAD ---
-         const result = await s3.uploadToS3(req.file.buffer, req.file.originalname, 'products');
-         res.json({
-            url: result.url,
-            public_id: result.public_id,
-            message: 'Image uploaded successfully to AWS S3'
-         });
-
-    } else if (process.env.CLOUDINARY_CLOUD_NAME) {
+    // UTILS: Chọn Storage Service (Ưu tiên Cloudinary > Local)
+    if (process.env.CLOUDINARY_CLOUD_NAME) {
       // --- CLOUDINARY UPLOAD ---
       const result = await uploadImage(req.file.buffer, 'products');
 
@@ -115,13 +94,7 @@ exports.deleteImage = async (req, res) => {
     const { publicId } = req.body;
     if (!publicId) return res.status(400).json({ msg: 'publicId required' });
 
-    const s3Delete = getS3Utils();
-    if (s3Delete && process.env.AWS_BUCKET_NAME) {
-        // Delete from AWS S3
-        await s3Delete.deleteFromS3(publicId);
-        res.json({ msg: 'Deleted from AWS S3' });
-        
-    } else if (process.env.CLOUDINARY_CLOUD_NAME) {
+    if (process.env.CLOUDINARY_CLOUD_NAME) {
       // Delete from Cloudinary
       await deleteImage(publicId);
       res.json({ msg: 'Deleted from Cloudinary' });

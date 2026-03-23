@@ -17,7 +17,7 @@ Dự án phát triển một hệ thống quản lý bán lẻ O2O (Online-to-Of
 
 **Điểm đột phá (Key Innovations):**
 
-- **Hybrid Cloud Architecture:** Kết hợp sức mạnh xử lý tức thời tại biên (**Edge AI**) và khả năng lưu trữ vô hạn trên đám mây (**AWS Cloud**).
+- **Hybrid Cloud Architecture:** Kết hợp sức mạnh xử lý tức thời tại biên (**Edge AI**) và khả năng lưu trữ linh hoạt trên đám mây (**Web Server & Cloudinary**).
 - **Active Defense (Phòng vệ chủ động):** Không chỉ giám sát bị động, hệ thống tự động kích hoạt loa/còi/khóa cửa ngay khi AI phát hiện hành vi khả nghi.
 
 ---
@@ -31,10 +31,10 @@ Hệ thống hoạt động dựa trên mô hình **3-Layer**:
 1.  **Edge Layer (Tại cửa hàng):**
     - **Camera AI:** Chạy model YOLO11/InsightFace/MediaPipe để phát hiện xâm nhập và nhận diện khách hàng VIP Real-time.
     - **IoT Controller (ESP32):** Điều khiển thiết bị vật lý (Còi, Đèn, Khóa từ) qua giao thức MQTT.
-2.  **Cloud Layer (AWS):**
-    - **AWS IoT Core:** Broker trung gian nhận tín hiệu từ Edge.
-    - **AWS Lambda & Rule Engine:** Xử lý logic nghiệp vụ serverless.
-    - **DynamoDB:** Lưu trữ Log cảm biến tốc độ cao.
+2.  **Cloud Layer:**
+    - **Web Socket/API (Render):** Broker trung gian nhận tín hiệu từ Edge.
+    - **Cloudinary:** Nền tảng lưu trữ Video/Image tốc độ cao.
+    - **MongoDB Atlas:** Lưu trữ dữ liệu hệ thống và Log an ninh.
 3.  **Application Layer:**
     - **Web Dashboard:** Giao diện quản lý tập trung cho chủ cửa hàng.
     - **MongoDB:** Lưu trữ thông tin khách hàng, sản phẩm, đơn hàng.
@@ -47,8 +47,8 @@ Hệ thống hoạt động dựa trên mô hình **3-Layer**:
 | :------------- | :-------------------------- | :------------------------------------ |
 | **Backend**    | **NodeJS, ExpressJS**       | Xây dựng RESTful API hiệu năng cao    |
 | **Frontend**   | **ReactJS, TailwindCSS**    | Web Dashboard Responsive & Chart.js   |
-| **Database**   | **MongoDB & DynamoDB**      | Mô hình Hybrid Database (SQL + NoSQL) |
-| **PaaS/Cloud** | **AWS (IoT Core, S3, EC2)** | Hạ tầng Cloud chuẩn công nghiệp       |
+| **Database**   | **MongoDB Atlas**           | Mô hình NoSQL linh hoạt, truy vấn nhanh |
+| **PaaS/Cloud** | **Vercel, Render, Cloudinary**| Hạ tầng Cloud chuẩn công nghiệp       |
 | **AI/ML**      | **Python, YOLO11, InsightFace**| Xử lý ảnh và Computer Vision          |
 | **Hardware**   | **ESP32, Sensors**          | Lập trình nhúng C/C++                 |
 
@@ -61,7 +61,7 @@ Hệ thống hoạt động dựa trên mô hình **3-Layer**:
 - Node.js >= 18.x
 - Python >= 3.9
 - Arduino IDE (cho ESP32)
-- Tài khoản AWS (được cấp quyền IoT Core & DynamoDB)
+- Tài khoản Cloudinary & MongoDB (để lưu trữ data)
 
 ### Bước 1: Khởi chạy Web Server
 
@@ -85,7 +85,7 @@ python detection_service.py
 ### Bước 3: Nạp Firmware cho ESP32
 
 1. Mở `IoT-Firmware/SmartStore_ESP32.ino` bằng Arduino IDE.
-2. Cập nhật `AWS_CERT_CA`, `AWS_CERT_CRT`, `AWS_CERT_PRIVATE` trong file `secrets.h`.
+2. Cập nhật thông tin WiFi và Token mạng trong file cấu hình.
 3. Nhấn **Upload** để nạp code.
 
 ---
@@ -96,10 +96,10 @@ Dự án được thực hiện bởi nhóm sinh viên Khoa CNTT - Học viện 
 
 1.  **Lê Dương Bảo (Team Leader)**
     - Vai trò: **Backend Lead, System Architect**.
-    - Trách nhiệm: Thiết kế hệ thống, Code Backend API, Tích hợp AWS & Web Dashboard.
+    - Trách nhiệm: Thiết kế hệ thống, Code Backend API, Tích hợp Web Dashboard.
 2.  **Đặng Cao Minh Anh**
-    - Vai trò: **Cloud Engineer**.
-    - Trách nhiệm: Cấu hình AWS IoT Core, DynamoDB, Lambda Functions.
+    - Vai trò: **AI & Cloud Engineer**.
+    - Trách nhiệm: Phát triển mô hình Edge AI (YOLO11, InsightFace), Quản lý Cloudinary và luồng Socket.IO.
 3.  **Nguyễn Lê Hưng**
     - Vai trò: **IoT Engineer**.
     - Trách nhiệm: Lập trình firmware ESP32, thiết kế mạch phần cứng.

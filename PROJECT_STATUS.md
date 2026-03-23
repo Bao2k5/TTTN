@@ -15,7 +15,7 @@ _Theo Phiếu Đăng Ký Đề Tài Thực Tập Tốt Nghiệp - HK2 2025-2026 
 
 ### Mục tiêu đạt được (5 Goals)
 
-1. **Nghiên cứu và triển khai mô hình Hybrid Cloud - Edge AI**: Xây dựng hệ thống phân tán với AI xử lý tại biên (Laptop/Gateway) để đảm bảo cảnh báo thời gian thực và Web Server trên Cloud (AWS) để quản lý tập trung.
+1. **Nghiên cứu và triển khai mô hình Hybrid Cloud - Edge AI**: Xây dựng hệ thống phân tán với AI xử lý tại biên (Laptop/Gateway) để đảm bảo cảnh báo thời gian thực và Web Server trên Cloud (Render/MongoDB) để quản lý tập trung.
 2. **Phát triển Module AI nhận diện thông minh**: Ứng dụng thuật toán Deep Learning (YOLOv8 & MediaPipe) và phát hiện hành vi xâm nhập vùng cấm với độ trễ thấp.
 3. **Xây dựng Dashboard quản lý trung tâm**: Thiết kế Website (NodeJS) hiển thị trực quan thông tin khách hàng, lịch sử cảnh báo an ninh và biểu đồ thống kê, hỗ trợ truy cập đa nền tảng (Mobile/PC).
 4. **Tích hợp hệ thống điều khiển IoT (ESP32)**: Lập trình vi điều khiển ESP32 kết nối WiFi, tự động nhận tín hiệu từ AI Server để kích hoạt các thiết bị cảnh báo vật lý (còi, đèn) ngay lập tức.
@@ -27,7 +27,7 @@ _Theo Phiếu Đăng Ký Đề Tài Thực Tập Tốt Nghiệp - HK2 2025-2026 
 - **Nâng cao (Điểm nhấn)**: Chuyển đổi từ Web truyền thống sang mô hình **Hybrid Cloud-Edge AI & IoT**.
   - **IoT**: Thiết bị giám sát tại cửa hàng thực tế (Camera, Cảm biến) dùng ESP32/Camera.
   - **AI**: Nhận diện khuôn mặt khách hàng VIP, gợi ý sản phẩm thông minh.
-  - **Cloud**: AWS IoT Core (Dự kiến), lưu trữ dữ liệu lớn, xử lý serverless.
+  - **Cloud**: Render Backend xử lý logic, Cloudinary lưu trữ Video/Image, Web Socket Real-time.
 
 ### Phân tích Hệ thống (System Analysis Context)
 
