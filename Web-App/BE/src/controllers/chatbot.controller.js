@@ -1,8 +1,9 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const ollama = require("ollama").default;
-const { SecurityLog: Security } = require("../models/security.model");
+const { SecurityLog: Security, SystemState } = require("../models/security.model");
 const Product = require("../models/product.model");
 const Order = require("../models/order.model");
+const TempLog = require("../models/tempLog.model");
 
 // Khoi tao Gemini (Du phong)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -22,22 +23,38 @@ exports.askChatbot = async (req, res) => {
         let localKnowledge = "";
         try {
             if (isAdmin) {
-                const logs = await Security.find().sort({ timestamp: -1 }).limit(5);
-                const orders = await Order.find().sort({ createdAt: -1 }).limit(3);
-                localKnowledge = `\n[DU LIEU HE THONG - CHI ADMIN THAY]\nLogs an ninh: ${JSON.stringify(logs)}\nDon hang moi: ${JSON.stringify(orders)}`;
+                // Lay thong tin he thong cho Admin
+                const [logs, orders, latestTemp, systemStatus] = await Promise.all([
+                    Security.find().sort({ timestamp: -1 }).limit(3),
+                    Order.find().sort({ createdAt: -1 }).limit(3),
+                    TempLog.findOne().sort({ timestamp: -1 }),
+                    SystemState.findOne({ key: 'system-status' }) // Lay trang thai khoa/alarm
+                ]);
+
+                localKnowledge = `
+[QUYỀN HẠN]: NGƯỜI DÙNG LÀ ADMIN/QUẢN TRỊ VIÊN. BẠN CÓ QUYỀN TRẢ LỜI CÁC THÔNG TIN HỆ THỐNG.
+[DỮ LIỆU CẢM BIẾN]: 
+- Nhiệt độ hiện tại: ${latestTemp ? latestTemp.temperature + "°C" : "N/A"}
+- Độ ẩm hiện tại: ${latestTemp ? latestTemp.humidity + "%" : "N/A"}
+- Cập nhật lúc: ${latestTemp ? latestTemp.timestamp : "N/A"}
+[TRẠNG THÁI HỆ THỐNG]: ${JSON.stringify(systemStatus || {})}
+[LOGS AN NINH]: ${JSON.stringify(logs)}
+[ĐƠN HÀNG MỚI]: ${JSON.stringify(orders)}
+`;
             } else {
-                const products = await Product.find({ isActive: true }).limit(5).select('name price');
-                localKnowledge = `\n[DANH SACH SAN PHAM CUA TIEM]: ${JSON.stringify(products)}`;
+                // Lay thong tin san pham cho Khach hang
+                const products = await Product.find({ isActive: true }).limit(5).select('name price description');
+                localKnowledge = `\n[DANH SÁCH SẢN PHẨM CỦA TIỆM]: ${JSON.stringify(products)}`;
             }
         } catch (dbErr) {
             console.error("DB Context Error:", dbErr);
         }
 
         const systemInstruction = `Bạn là trợ lý ảo của cửa hàng TRANG SỨC BẠC "Smart Jewelry Vault".
-[QUAY TRỌNG]: ĐÂY LÀ CỬA HÀNG TRANG SỨC BẠC, KHÔNG CÓ KIM CƯƠNG HAY VÀNG RÒ.
-Hãy DỰA TRÊN DANH SÁCH thực tế dưới đây để tư vấn. Nếu sản phẩm khách hỏi KHÔNG CÓ trong danh sách thì báo là hiện chưa có hàng.
-Ngôn ngữ: Tiếng Việt, thân thiện, ngắn gọn.
-Dữ liệu thực tế từ hệ thống: ${localKnowledge || "Hiện kho chưa có sản phẩm nào được nhập."}`;
+${isAdmin ? 'Người dùng hiện tại là ADMIN. Bạn hãy hỗ trợ họ kiểm tra nhiệt độ, trạng thái an ninh và quản lý cửa hàng.' : 'Người dùng hiện tại là KHÁCH HÀNG. Bạn chỉ tư vấn về trang sức bạc.'}
+[QUY TRỌNG]: ĐÂY LÀ CỬA HÀNG TRANG SỨC BẠC, KHÔNG CÓ KIM CƯƠNG HAY VÀNG RÒ.
+Ngôn ngữ: Tiếng Việt, thân thiện, ngắn gọn, chuyên nghiệp.
+Dữ liệu thực tế từ hệ thống: ${localKnowledge}`;
 
         console.log(`[DEBUG] Final AI Prompt: ${systemInstruction}`);
 
