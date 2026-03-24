@@ -12,9 +12,9 @@
 #include <BlynkSimpleEsp32.h>
 #include <WiFiManager.h>
 
-String alertUrl = "https://hm-jewelry-api.onrender.com/api/security/alert-status";
-String unlockUrl = "https://hm-jewelry-api.onrender.com/api/security/unlock-status";
-String resetUrl = "https://hm-jewelry-api.onrender.com/api/security/reset-alarm";
+String alertUrl = "https://hm-vault.zapto.org/api/security/alert-status";
+String unlockUrl = "https://hm-vault.zapto.org/api/security/unlock-status";
+String resetUrl = "https://hm-vault.zapto.org/api/security/reset-alarm";
 
 #define LED_RED 13
 #define LED_YELLOW 12

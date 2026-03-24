@@ -34,6 +34,16 @@ const AdminUsers = () => {
     }
   };
 
+  const handleVerify = async (userId) => {
+    try {
+      await api.put(`/admin/users/${userId}`, { emailVerified: true });
+      loadUsers();
+    } catch (error) {
+      console.error('Error verifying user:', error);
+      alert('Lỗi khi xác thực người dùng');
+    }
+  };
+
   const handleDelete = async (userId) => {
     if (!confirm('Bạn có chắc muốn xóa người dùng này?')) return;
     try {
@@ -121,6 +131,14 @@ const AdminUsers = () => {
                         className="text-red-600 hover:text-red-800 text-sm font-medium"
                       >
                         Xóa
+                      </button>
+                    )}
+                    {!user.emailVerified && (
+                      <button
+                        onClick={() => handleVerify(user._id)}
+                        className="ml-3 text-luxury-gold hover:text-luxury-darkGray text-sm font-medium"
+                      >
+                        Xác thực
                       </button>
                     )}
                   </td>

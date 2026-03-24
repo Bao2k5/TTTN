@@ -97,4 +97,21 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Server error' });
 });
 
+// Background job: Clean up unverified users older than 24 hours
+const User = require('./models/user.model');
+setInterval(async () => {
+  try {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const result = await User.deleteMany({
+      emailVerified: false,
+      createdAt: { $lt: twentyFourHoursAgo }
+    });
+    if (result.deletedCount > 0) {
+      console.log(`[CLEANUP] Deleted ${result.deletedCount} unverified stale users.`);
+    }
+  } catch (err) {
+    console.error('[CLEANUP ERROR]', err);
+  }
+}, 60 * 60 * 1000); // Check every 1 hour
+
 module.exports = app;

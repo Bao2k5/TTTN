@@ -42,7 +42,7 @@ char AI_SERVICE_IP[40] = "192.168.1.100";
 const int AI_SERVICE_PORT = 5001;
 
 // Cloud BE để poll face-scan-status (Admin bấm nút mở tủ từ web)
-const char* BE_BASE_URL = "https://hm-jewelry-api.onrender.com";
+const char* BE_BASE_URL = "https://hm-vault.zapto.org";
 
 Preferences prefs; // Để lưu AI_SERVICE_IP vào flash
 // =====================================================

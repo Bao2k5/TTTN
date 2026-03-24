@@ -9,6 +9,7 @@ const passport = require('../middleware/passport');
 
 router.post(
 	"/register",
+	authLimiter,
 	[body('name').isLength({ min: 2 }), body('email').isEmail(), body('password').isLength({ min: 6 })],
 	handleValidation,
 	authController.register
