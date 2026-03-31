@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const securityController = require('../controllers/security.controller');
+const { verifyToken, isAdmin } = require('../middleware/auth.middleware');
+
+// All security routes require authentication and admin role
+router.use(verifyToken, isAdmin);
 
 // @route   POST /api/security/log
 router.post('/log', securityController.createLog);

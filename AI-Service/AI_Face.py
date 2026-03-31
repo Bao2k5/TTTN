@@ -33,7 +33,7 @@ cloudinary.config(
   api_secret = "v9wfVhbBoZAKVXxYJgRhKtqptWE"
 )
 
-CLOUD_BACKEND = "https://hm-jewelry-api.onrender.com"
+CLOUD_BACKEND = "https://hm-vault.zapto.org"
 API_URL = CLOUD_BACKEND + "/api/security/log"
 UNLOCK_URL = CLOUD_BACKEND + "/api/security/trigger-unlock"
 RESET_ALARM_URL = CLOUD_BACKEND + "/api/security/reset-alarm"

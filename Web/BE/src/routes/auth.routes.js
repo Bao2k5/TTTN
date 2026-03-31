@@ -33,6 +33,7 @@ router.post(
 
 router.post(
 	"/reset-password",
+	forgotLimiter,
 	[body('email').isEmail(), body('token').exists(), body('newPassword').isLength({ min: 6 })],
 	handleValidation,
 	authController.resetPassword

@@ -101,7 +101,9 @@ exports.deleteImage = async (req, res) => {
       
     } else {
       // Delete from local storage
-      const filePath = path.join(__dirname, '../../uploads', publicId);
+      // SECURITY: Use path.basename to prevent path traversal attacks
+      const sanitizedPublicId = path.basename(publicId);
+      const filePath = path.join(__dirname, '../../uploads', sanitizedPublicId);
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }

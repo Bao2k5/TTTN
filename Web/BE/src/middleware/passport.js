@@ -4,6 +4,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const FacebookStrategy = require('passport-facebook').Strategy;
 const User = require('../models/user.model');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 // Only initialize OAuth if credentials are provided
 const hasGoogleCredentials = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET;
@@ -28,7 +29,7 @@ if (hasGoogleCredentials) {
 
           if (!user) {
             // Create new user if doesn't exist
-            const randomPassword = Math.random().toString(36).slice(-8);
+            const randomPassword = crypto.randomBytes(16).toString('hex');
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(randomPassword, salt);
 
@@ -71,7 +72,7 @@ if (hasFacebookCredentials) {
           let user = await User.findOne({ email: profile.emails[0].value });
 
           if (!user) {
-            const randomPassword = Math.random().toString(36).slice(-8);
+            const randomPassword = crypto.randomBytes(16).toString('hex');
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(randomPassword, salt);
 
