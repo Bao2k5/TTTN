@@ -37,6 +37,7 @@ CLOUD_BACKEND = "https://hm-vault.zapto.org"
 API_URL = CLOUD_BACKEND + "/api/security/log"
 UNLOCK_URL = CLOUD_BACKEND + "/api/security/trigger-unlock"
 RESET_ALARM_URL = CLOUD_BACKEND + "/api/security/reset-alarm"
+HEADER_AUTH = {"x-device-key": "IoT_Secure_Vault_2024"}
 
 # Camera CCTV: webcam laptop (thay thế camera trên nóc CCTV)
 CAMERA_SOURCE = "webcam"
@@ -249,7 +250,7 @@ class FaceRecognitionApp:
                 "videoUrl": None,
                 "videoPublicId": None
             }
-            res = requests.post(API_URL, json=payload, timeout=5)
+            res = requests.post(API_URL, json=payload, headers=HEADER_AUTH, timeout=5)
             log_id = None
             if res.status_code == 201:
                 log_id = res.json().get('data', {}).get('_id')
@@ -297,7 +298,7 @@ class FaceRecognitionApp:
                         "videoUrl": vid_url,
                         "videoPublicId": vid_id
                     }
-                    update_res = requests.put(put_url, json=put_payload, timeout=10)
+                    update_res = requests.put(put_url, json=put_payload, headers=HEADER_AUTH, timeout=10)
                     if update_res.status_code == 200:
                         print(f"[SUCCESS] Đã đính kèm video vào cảnh báo {log_id}")
                     
@@ -316,7 +317,7 @@ class FaceRecognitionApp:
             print(f"[ACCESS] Authorized User detected: {name}. Unlocking...")
             try:
                 # Gui lenh mo khoa len Backend
-                requests.post(UNLOCK_URL, json={"reason": f"FaceID recognized: {name}"}, timeout=5)
+                requests.post(UNLOCK_URL, json={"reason": f"FaceID recognized: {name}"}, headers=HEADER_AUTH, timeout=5)
                 # Sếp co the dung cac y tuong nhu Voice Assistant o day:
                 # print("Chào Chủ tịch, đang mở khóa...")
             except Exception as e:
@@ -627,7 +628,7 @@ if __name__ == "__main__":
                         # Tự động gọi trigger-unlock lên cloud BE
                         def do_unlock():
                             try:
-                                requests.post(UNLOCK_URL, json={"reason": f"FaceID ESP32CAM: {name}"}, timeout=5)
+                                requests.post(UNLOCK_URL, json={"reason": f"FaceID ESP32CAM: {name}"}, headers=HEADER_AUTH, timeout=5)
                                 print(f"[FACE-VERIFY] 🔓 Lệnh mở khóa đã gửi cho: {name}")
                             except Exception as e:
                                 print(f"[FACE-VERIFY] Lỗi gửi trigger-unlock: {e}")

@@ -1,42 +1,30 @@
 const express = require('express');
 const router = express.Router();
 const securityController = require('../controllers/security.controller');
-const { verifyToken, isAdmin } = require('../middleware/auth.middleware');
+const { verifyToken, isAdmin, verifyDeviceKey } = require('../middleware/auth.middleware');
 
-// All security routes require authentication and admin role
+// --- IoT & AI Specific Routes (ESP32, ESP32-CAM, Python Edge AI) ---
+// These routes allow access via x-device-key header OR Admin JWT
+router.post('/temp-log', verifyDeviceKey, securityController.logTemperature);
+router.get('/alert-status', verifyDeviceKey, securityController.checkAlertStatus);
+router.get('/unlock-status', verifyDeviceKey, securityController.checkUnlockStatus);
+router.get('/face-scan-status', verifyDeviceKey, securityController.checkFaceScanStatus);
+router.post('/reset-alarm', verifyDeviceKey, securityController.resetAlarm);
+router.post('/log', verifyDeviceKey, securityController.createLog);
+router.put('/log/:id', verifyDeviceKey, securityController.updateLog);
+router.post('/trigger-unlock', verifyDeviceKey, securityController.triggerUnlock);
+
+// --- Admin & Web Routes ---
+// These routes REQUIRE full Admin authentication
 router.use(verifyToken, isAdmin);
-
-// @route   POST /api/security/log
-router.post('/log', securityController.createLog);
 
 // @route   GET /api/security/logs
 router.get('/logs', securityController.getLogs);
 
-// @route   PUT /api/security/log/:id
-router.put('/log/:id', securityController.updateLog);
-
-// @route   GET /api/security/alert-status
-router.get('/alert-status', securityController.checkAlertStatus);
-
-// @route   POST /api/security/reset-alarm
-router.post('/reset-alarm', securityController.resetAlarm);
-
-// @route   GET /api/security/unlock-status
-router.get('/unlock-status', securityController.checkUnlockStatus);
-
-// @route   POST /api/security/trigger-unlock
-router.post('/trigger-unlock', securityController.triggerUnlock);
-
-// @route   POST /api/security/temp-log
-router.post('/temp-log', securityController.logTemperature);
-
 // @route   GET /api/security/temp-history
 router.get('/temp-history', securityController.getTempHistory);
 
-// @route   POST /api/security/face-scan-trigger  (Admin kích hoạt quét mặt)
+// @route   POST /api/security/face-scan-trigger
 router.post('/face-scan-trigger', securityController.triggerFaceScan);
-
-// @route   GET /api/security/face-scan-status  (ESP32-CAM poll)
-router.get('/face-scan-status', securityController.checkFaceScanStatus);
 
 module.exports = router;

@@ -24,6 +24,7 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <WiFiManager.h>     // Kết nối WiFi thông minh qua điện thoại
 #include <Preferences.h>     // Lưu cấu hình vào flash
@@ -42,7 +43,8 @@ char AI_SERVICE_IP[40] = "192.168.1.100";
 const int AI_SERVICE_PORT = 5001;
 
 // Cloud BE để poll face-scan-status (Admin bấm nút mở tủ từ web)
-const char* BE_BASE_URL = "https://hm-vault.zapto.org";
+const char* BE_BASE_URL = "https://hm-vault.zapto.org/api/security";
+const char* DEVICE_KEY = "IoT_Secure_Vault_2024";
 
 Preferences prefs; // Để lưu AI_SERVICE_IP vào flash
 // =====================================================
@@ -276,8 +278,11 @@ void loop() {
   // Poll BE mỗi 2 giây xem có yêu cầu quét mặt từ Admin không
   if (!isProcessing && (now - lastPollTime >= POLL_INTERVAL)) {
     lastPollTime = now;
+    WiFiClientSecure client;
+    client.setInsecure();
     HTTPClient http;
-    http.begin(String(BE_BASE_URL) + "/api/security/face-scan-status");
+    http.begin(client, String(BE_BASE_URL) + "/face-scan-status");
+    http.addHeader("x-device-key", DEVICE_KEY);
     http.setTimeout(3000);
     int code = http.GET();
     if (code == 200) {

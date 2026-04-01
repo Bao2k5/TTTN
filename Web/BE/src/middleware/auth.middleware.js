@@ -40,3 +40,16 @@ exports.isAdmin = async (req, res, next) => {
   if (user && user.role === "admin") return next();
   return res.status(403).json({ msg: "Require admin role" });
 };
+
+// Middleware verify Device Key dành riêng cho IoT (ESP32)
+exports.verifyDeviceKey = (req, res, next) => {
+  const deviceKey = req.headers["x-device-key"];
+  const SECURE_KEY = process.env.DEVICE_KEY || "IoT_Secure_Vault_2024";
+
+  if (deviceKey && deviceKey === SECURE_KEY) {
+    return next();
+  }
+  
+  // Nếu không có Device Key, vẫn cho phép kiểm tra verifyToken nếu có
+  return exports.verifyToken(req, res, next);
+};

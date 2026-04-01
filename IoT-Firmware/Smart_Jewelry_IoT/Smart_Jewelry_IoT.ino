@@ -5,6 +5,7 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <ESP32Servo.h>
 #include <DHT.h>
@@ -12,9 +13,9 @@
 #include <BlynkSimpleEsp32.h>
 #include <WiFiManager.h>
 
-String alertUrl = "https://hm-vault.zapto.org/api/security/alert-status";
-String unlockUrl = "https://hm-vault.zapto.org/api/security/unlock-status";
-String resetUrl = "https://hm-vault.zapto.org/api/security/reset-alarm";
+// --- Backend Configuration ---
+String baseUrl = "https://hm-vault.zapto.org/api/security";
+String deviceKey = "IoT_Secure_Vault_2024";
 
 #define LED_RED 13
 #define LED_YELLOW 12
@@ -91,9 +92,13 @@ BLYNK_WRITE(V1)
     lastVibrationReset = millis();
     Blynk.virtualWrite(V1, 0);
 
+    WiFiClientSecure client;
+    client.setInsecure();
     HTTPClient http;
-    http.begin(resetUrl);
-    int code = http.POST("{}");
+    http.begin(client, baseUrl + "/reset-alarm");
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("x-device-key", deviceKey);
+    int code = http.POST("{\"pin\":\"1234\"}"); // Gửi PIN mặc định
     http.end();
   }
 }
@@ -127,10 +132,13 @@ void sendSensorData()
     // Gửi dữ liệu nhiệt độ/độ ẩm lên backend để lưu DB
     if (WiFi.status() == WL_CONNECTED)
     {
+      WiFiClientSecure client;
+      client.setInsecure();
       HTTPClient http;
       http.setTimeout(3000);
-      http.begin("https://hm-jewelry-api.onrender.com/api/security/temp-log");
+      http.begin(client, baseUrl + "/temp-log");
       http.addHeader("Content-Type", "application/json");
+      http.addHeader("x-device-key", deviceKey);
       String body = "{\"temp\":" + String(temp, 1) + ",\"humi\":" + String(humi, 1) + "}";
       int code = http.POST(body);
       if (code > 0)
@@ -395,16 +403,19 @@ void loop()
 
 void checkAlertStatus()
 {
+  WiFiClientSecure client;
+  client.setInsecure();
   HTTPClient http;
   http.setTimeout(1500);
-  http.begin(alertUrl);
+  http.begin(client, baseUrl + "/alert-status");
+  http.addHeader("x-device-key", deviceKey);
   int code = http.GET();
   if (code > 0)
   {
     String payload = http.getString();
     StaticJsonDocument<200> doc;
     deserializeJson(doc, payload);
-    bool newAlarm = doc["shouldAlert"] == true;
+    bool newAlarm = doc["shouldAlert"] == true || doc["alert"] == true;
     if (newAlarm != isAlarm)
     {
       Serial.println(newAlarm ? "[STATE] >>> BAO DONG!" : "[STATE] >>> AN TOAN");
@@ -418,9 +429,12 @@ void checkAlertStatus()
 
 void checkUnlockStatus()
 {
+  WiFiClientSecure client;
+  client.setInsecure();
   HTTPClient http;
   http.setTimeout(1500);
-  http.begin(unlockUrl);
+  http.begin(client, baseUrl + "/unlock-status");
+  http.addHeader("x-device-key", deviceKey);
   int code = http.GET();
   if (code > 0)
   {
