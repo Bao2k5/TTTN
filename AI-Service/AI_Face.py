@@ -25,7 +25,13 @@ except ImportError:
     INSIGHTFACE_AVAILABLE = False
     print("[ERROR] Please install: 'pip install insightface onnxruntime'")
 
-load_dotenv(dotenv_path="../.env")
+import os
+import sys
+
+# Lấy đường dẫn file hiện tại để nạp đúng .env thư mục gốc
+current_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(current_dir, "..", ".env")
+load_dotenv(dotenv_path=env_path)
 
 cloudinary.config( 
   cloud_name = "drqowqzr6", 
@@ -367,7 +373,7 @@ class FaceRecognitionApp:
                                     emb = emb / np.linalg.norm(emb)
                                     
                                     distances, indices = self.classifier.kneighbors([emb])
-                                    if distances[0][0] < 1.3: # Nguong 1.3 cho InsightFace
+                                    if distances[0][0] < 1.2: # Nguong 1.3 cho InsightFace
                                         label_idx = self.classifier.predict([emb])[0]
                                         name = self.encoder.inverse_transform([label_idx])[0]
                                         self.tracked_identities[track_id] = name
