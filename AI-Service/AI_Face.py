@@ -64,7 +64,12 @@ class FaceRegistrationWindow:
         if CAMERA_SOURCE == "esp32cam":
             self.cap = None  # Sẽ fetch ảnh qua HTTP /capture
         else:
-            self.cap = cv2.VideoCapture(CAMERA_URL)
+            # Thử mở camera với DirectShow backend trước
+            self.cap = cv2.VideoCapture(CAMERA_URL, cv2.CAP_DSHOW)
+            if not self.cap.isOpened():
+                self.cap = cv2.VideoCapture(CAMERA_URL, cv2.CAP_MSMF)
+            if not self.cap.isOpened():
+                self.cap = cv2.VideoCapture(CAMERA_URL)
         self.is_running = True
         self.images_captured = 0
         self.total_needed = 20
@@ -330,12 +335,45 @@ class FaceRecognitionApp:
                 print(f"[ERROR] Unlock failed: {e}")
 
     def video_worker(self):
-        cap = cv2.VideoCapture(CAMERA_URL)
+        # Thử mở camera với nhiều backend khác nhau
+        cap = None
+        for backend in [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]:
+            print(f"[CAM] Trying camera index {CAMERA_URL} with backend {backend}...")
+            cap = cv2.VideoCapture(CAMERA_URL, backend)
+            if cap.isOpened():
+                print(f"[CAM] Camera opened successfully with backend {backend}")
+                break
+            cap.release()
+            cap = None
+        
+        if cap is None or not cap.isOpened():
+            print("[ERROR] Cannot open camera! Trying all indices 0-3...")
+            for idx in range(4):
+                cap = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
+                if cap.isOpened():
+                    print(f"[CAM] Camera opened at index {idx}")
+                    break
+                cap.release()
+                cap = None
+        
+        if cap is None or not cap.isOpened():
+            print("[ERROR] No camera available! Please check your webcam.")
+            self.is_running = False
+            return
+
         fence_box = (500, 50, 750, 300)
+        fail_count = 0
 
         while self.is_running:
             ret, frame = cap.read()
-            if not ret: break
+            if not ret:
+                fail_count += 1
+                if fail_count > 30:
+                    print("[ERROR] Camera read failed 30 times. Stopping.")
+                    break
+                time.sleep(0.1)
+                continue
+            fail_count = 0
             frame = cv2.flip(frame, 1)
             self.current_frame = frame.copy() 
             
@@ -348,6 +386,7 @@ class FaceRecognitionApp:
             results = self.detector.track(frame, classes=[0], persist=True, tracker="bytetrack.yaml", verbose=False)[0]
             
             is_stranger_in_fence = False
+            is_staff_in_fence = False
             self.is_staff_present = False
 
             if results.boxes.id is not None:
@@ -389,6 +428,8 @@ class FaceRecognitionApp:
                     else:
                         color = (0, 255, 0) # Xanh
                         self.is_staff_present = True
+                        # Nhan vien trong vung fence -> khong canh bao
+                        if in_fence: is_staff_in_fence = True
                         if name in self.authorized_users:
                             self.handle_face_unlock(name)
 
@@ -397,7 +438,9 @@ class FaceRecognitionApp:
                     cv2.putText(frame, f"ID:{track_id} {name}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
             # 4. STATE MACHINE FOR RECORDING EVENT (Pre-roll + Action + Post-roll)
-            if is_stranger_in_fence:
+            # Chi canh bao khi: Stranger trong fence VA KHONG co nhan vien nao trong fence
+            should_alert = is_stranger_in_fence and not is_staff_in_fence
+            if should_alert:
                 if not self.is_recording_event:
                     now = time.time()
                     if now - self.last_alert_time >= self.alert_cooldown: # Chỉ bắt đầu khi hết cooldown
@@ -429,9 +472,15 @@ class FaceRecognitionApp:
                         self.active_event_frames = []
 
             # 5. DRAW FENCE
-            color_fence = (0, 0, 255) if is_stranger_in_fence else (0, 255, 0)
+            # Fence do khi co canh bao (stranger + khong co nhan vien), xanh khi an toan
+            color_fence = (0, 0, 255) if should_alert else (0, 255, 0)
             cv2.rectangle(frame, (fence_box[0], fence_box[1]), (fence_box[2], fence_box[3]), color_fence, 2)
-            cv2.putText(frame, "JEWELRY ZONE", (fence_box[0], fence_box[1]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color_fence, 2)
+            status_text = "JEWELRY ZONE"
+            if is_staff_in_fence:
+                status_text = "JEWELRY ZONE [STAFF]"
+            elif is_stranger_in_fence:
+                status_text = "JEWELRY ZONE [ALERT]"
+            cv2.putText(frame, status_text, (fence_box[0], fence_box[1]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color_fence, 2)
 
             if not self.frame_queue.full():
                 self.frame_queue.put(frame)
