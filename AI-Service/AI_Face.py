@@ -136,8 +136,10 @@ class FaceRegistrationWindow:
     def update_ui_loop(self):
         if not self.is_running:
             if self.images_captured >= self.total_needed:
+                parent = self.window.master
                 self.window.destroy()
-                self.callback(self.name)
+                # Chờ GUI dọn dẹp xóa hẳn Toplevel (sau 100ms) rồi mới gọi callback xử lý ảnh nặng
+                parent.after(100, lambda: self.callback(self.name))
             return
             
         try:
@@ -506,7 +508,19 @@ class FaceRecognitionApp:
             threading.Thread(target=self.video_worker, daemon=True).start()
             self.update_ui_loop()
 
-    def stop_system(self): self.is_running = False
+    def stop_system(self): 
+        self.is_running = False
+        # Chuyển canvas về màn đen khi tắt camera để tránh lưu lại ảnh cũ
+        black_img = Image.new('RGB', (800, 600), color='black')
+        self.root.after(0, self._set_black_screen, black_img)
+
+    def _set_black_screen(self, black_img):
+        try:
+            self.black_imgtk = ImageTk.PhotoImage(image=black_img)
+            self.video_label.imgtk = self.black_imgtk
+            self.video_label.configure(image=self.black_imgtk)
+        except Exception as e:
+            pass
 
     def get_embedding_only(self, face_img):
         if not INSIGHTFACE_AVAILABLE: return []
@@ -516,8 +530,10 @@ class FaceRecognitionApp:
 
     def register_user(self):
         self.stop_system() # Dung he thong chinh de nhuong Camera Port cho dang ky!
-        time.sleep(0.5)
-        
+        # Dùng tk.after thay vì time.sleep(0.5) để không làm đơ cứng toàn bộ UI
+        self.root.after(500, self._show_register_dialog)
+
+    def _show_register_dialog(self):
         name = simpledialog.askstring("Register", "Nhập tên nhân viên mới:")
         if not name: 
             self.start_system() # Mo lai he thong neu bam Huy
@@ -526,10 +542,26 @@ class FaceRecognitionApp:
         is_auth = messagebox.askyesno("Quyền hạn", f"Cho phép '{name}' được tự động mở khóa tủ bằng khuôn mặt?")
             
         def process_embeddings(staff_name, is_authorized):
+            # Tạo màn hình Loading Progress Bar phụ trợ về mặt UI
+            loading_win = tk.Toplevel(self.root)
+            loading_win.title("AI Đang Xử Lý...")
+            loading_win.geometry("350x150")
+            tk.Label(loading_win, text=f"Đang trích xuất đặc trưng AI: {staff_name}", font=('Arial', 11)).pack(pady=15)
+            progress_bar = ttk.Progressbar(loading_win, orient=tk.HORIZONTAL, length=280, mode='determinate')
+            progress_bar.pack(pady=5)
+            percent_lbl = tk.Label(loading_win, text="0/0", font=('Arial', 10))
+            percent_lbl.pack()
+
             def worker():
                 embs = []
                 folder = f"dataset/train/{staff_name}"
-                for img_name in os.listdir(folder):
+                try:
+                    files = os.listdir(folder)
+                except:
+                    files = []
+                total_files = len(files)
+                
+                for idx, img_name in enumerate(files):
                     img = cv2.imread(os.path.join(folder, img_name))
                     if img is not None:
                         faces = self.face_app.get(img)
@@ -537,6 +569,14 @@ class FaceRecognitionApp:
                             emb = faces[0].embedding
                             emb = emb / np.linalg.norm(emb)
                             embs.append(emb)
+                    
+                    # Update tick qua Toplevel Progress Bar
+                    def update_ui(current=idx+1, total=total_files):
+                        if total > 0:
+                            progress_bar['value'] = (current / total) * 100
+                            percent_lbl.config(text=f"{current}/{total} bức ảnh")
+                    self.root.after(0, update_ui)
+                
                 if embs:
                     buf = __import__('io').BytesIO()
                     np.save(buf, np.array(embs))
@@ -547,18 +587,19 @@ class FaceRecognitionApp:
                     }
                     self.collection.replace_one({'name': staff_name}, payload, upsert=True)
                     
-                    # RE-EVALUATE TRACKER SO BUGS ARE FIXED
                     self.tracked_identities = {} 
                     self.load_known_faces()
+                    self.root.after(0, lambda: loading_win.destroy())
                     self.root.after(0, lambda: messagebox.showinfo("Hoàn thành", "Đăng ký thành công!"))
                 else:
-                    self.root.after(0, lambda: messagebox.showerror("Lỗi", "Không tìm thấy khuôn mặt rõ nét trong lúc Đăng ký. Vui lòng thử lại!"))
+                    self.root.after(0, lambda: loading_win.destroy())
+                    self.root.after(0, lambda: messagebox.showerror("Lỗi", "Không tìm thấy khuôn mặt! Vui lòng thử lại."))
                     
-                # Tu dong BAT LAI he thong theo yeu cau User y nhu V3 
+                # Bật lại hệ thống Camera giám sát sau khi đã tính toán xong
                 if not self.is_running:
                     self.root.after(0, self.start_system)
             
-            # Chay background de cho UI thoat duoc khoi cua so Đăng ký
+            # Chay thread Thực sự "Tách luồng" song song cho thuật toán AI bên dưới
             threading.Thread(target=worker, daemon=True).start()
                 
         # USE cv2.CascadeClassifier instead of heavy InsightFace for pure GUI UI flow
