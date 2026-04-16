@@ -73,9 +73,9 @@ const AdminDashboard = () => {
     try {
       await api.post('/security/face-scan-trigger');
       setFaceIdState('scanning');
-      setCountdown(60);
+      setCountdown(15); // Đổi từ 60s xuống 15s cho nhanh
 
-      // Đếm ngược 30 giây
+      // Đếm ngược 15 giây
       countdownRef.current = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
@@ -102,13 +102,13 @@ const AdminDashboard = () => {
         } catch { /* ignore */ }
       }, 2000);
 
-      // Timeout 62 giây: nếu không mở được thì báo fail
+      // Timeout 15 giây ngắn gọn: nếu ESP32-CAM đã chụp 3 nhát vẫn hụt -> hết 15s tự chốt fail luôn khỏi đợi.
       setTimeout(() => {
         clearInterval(pollRef.current);
         clearInterval(countdownRef.current);
         setFaceIdState(prev => prev === 'scanning' ? 'fail' : prev);
         setTimeout(() => setFaceIdState('idle'), 3000);
-      }, 62000);
+      }, 15000);
 
     } catch (error) {
       console.error('Face scan trigger error:', error);
@@ -396,7 +396,7 @@ const AdminDashboard = () => {
                     <svg className="w-10 h-10 text-luxury-brown mb-1 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                     </svg>
-                    {countdown > 53 ? (
+                    {countdown > 8 ? (
                       <span className="text-xl font-bold text-luxury-brown">{countdown}s</span>
                     ) : (
                       <div className="flex space-x-1 mt-1">
@@ -409,11 +409,11 @@ const AdminDashboard = () => {
                 </div>
                 <div className="text-center">
                   <h3 className="font-display text-xl text-luxury-black tracking-wide uppercase mb-2">
-                    {countdown > 53 ? 'Đang chờ Camera' : 'AI Đang Xử Lý'}
+                    {countdown > 8 ? 'Đang chờ Camera' : 'AI Đang Xử Lý'}
                   </h3>
                   <p className="text-sm text-luxury-gray font-light whitespace-pre-line">
-                    {countdown > 53 
-                      ? 'Camera đang chụp ảnh khuôn mặt của bạn.\nHãy nhìn thẳng vào ESP32-CAM.' 
+                    {countdown > 8 
+                      ? 'Camera đang chụp ảnh khuôn mặt của bạn.\nHãy nhìn thẳng vào thiết bị.' 
                       : 'Đang trích xuất đặc trưng khuôn mặt...\nVui lòng đợi hệ thống xác thực.'}
                   </p>
                 </div>
