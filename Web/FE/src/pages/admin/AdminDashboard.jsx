@@ -396,14 +396,28 @@ const AdminDashboard = () => {
                     <svg className="w-10 h-10 text-luxury-brown mb-1 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                     </svg>
-                    <span className="text-2xl font-bold text-luxury-brown">{countdown}s</span>
+                    {countdown > 53 ? (
+                      <span className="text-xl font-bold text-luxury-brown">{countdown}s</span>
+                    ) : (
+                      <div className="flex space-x-1 mt-1">
+                        <div className="w-2 h-2 bg-luxury-brown rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-2 h-2 bg-luxury-brown rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-2 h-2 bg-luxury-brown rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="text-center">
-                  <h3 className="font-display text-xl text-luxury-black tracking-wide uppercase mb-2">Đang chờ FaceID</h3>
-                  <p className="text-sm text-luxury-gray font-light">ESP32-CAM đang quét khuôn mặt của bạn.<br/>Hãy nhìn thẳng vào camera tủ.</p>
+                  <h3 className="font-display text-xl text-luxury-black tracking-wide uppercase mb-2">
+                    {countdown > 53 ? 'Đang chờ Camera' : 'AI Đang Xử Lý'}
+                  </h3>
+                  <p className="text-sm text-luxury-gray font-light whitespace-pre-line">
+                    {countdown > 53 
+                      ? 'Camera đang chụp ảnh khuôn mặt của bạn.\nHãy nhìn thẳng vào ESP32-CAM.' 
+                      : 'Đang trích xuất đặc trưng khuôn mặt...\nVui lòng đợi hệ thống xác thực.'}
+                  </p>
                 </div>
-                <button onClick={cancelFaceScan} className="text-xs text-luxury-gray hover:text-red-500 uppercase tracking-widest transition-colors">Hủy</button>
+                <button onClick={cancelFaceScan} className="text-xs text-luxury-gray hover:text-red-500 uppercase tracking-widest transition-colors mt-2">Hủy Bỏ</button>
               </>
             )}
 

@@ -435,7 +435,8 @@ class FaceRecognitionApp:
                         # Nhan vien trong vung fence -> khong canh bao
                         if in_fence: is_staff_in_fence = True
                         if name in self.authorized_users:
-                            self.handle_face_unlock(name)
+                            pass  # Đã tắt auto-unlock qua CCTV - chỉ mở khi Admin bấm nút + ESP32-CAM xác thực
+                            # self.handle_face_unlock(name)  ← Tắt để tránh tự mở khóa
 
                     # Draw Result
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)

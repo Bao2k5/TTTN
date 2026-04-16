@@ -311,11 +311,12 @@ void loop() {
     http.end();
   }
 
-  // === CHẾ ĐỘ 2: Tự động quét mỗi 3 giây (background) ===
-  if (!isProcessing && (now - lastScanTime >= SCAN_INTERVAL)) {
-    lastScanTime = now;
-    scanFaceAndUnlock();
-  }
+  // === CHẾ ĐỘ 2: Tự động quét ĐÃ TẮT ===
+  // Chỉ scan khi Admin bấm nút trên web (Chế độ 1)
+  // if (!isProcessing && (now - lastScanTime >= SCAN_INTERVAL)) {
+  //   lastScanTime = now;
+  //   scanFaceAndUnlock();
+  // }
 
   // Giữ kết nối WiFi
   if (WiFi.status() != WL_CONNECTED) {
