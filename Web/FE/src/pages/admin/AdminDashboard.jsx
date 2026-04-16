@@ -87,10 +87,13 @@ const AdminDashboard = () => {
       }, 1000);
 
       // Poll unlock-status mỗi 2 giây để biết khi nào mở được
+      let handled = false; // Chỉ xử lý thành công 1 lần duy nhất
       pollRef.current = setInterval(async () => {
+        if (handled) return; // Đã xử lý rồi → bỏ qua các lần poll tiếp theo
         try {
           const res = await api.get('/security/unlock-status');
           if (res.data?.shouldUnlock) {
+            handled = true;
             clearInterval(pollRef.current);
             clearInterval(countdownRef.current);
             setFaceIdState('success');

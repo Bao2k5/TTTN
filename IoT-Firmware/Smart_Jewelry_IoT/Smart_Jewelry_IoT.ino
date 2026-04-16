@@ -54,8 +54,8 @@ unsigned long lastMotionTime = 0;
 unsigned long lastVibrationReset = 0;
 int vibrationCount = 0;
 unsigned long vibrationWindowStart = 0;
-unsigned long vibrationAlarmTime = 0;  // Thời điểm bắt đầu báo rung
-bool lastVibPin = HIGH;                // Trạng thái pin rung trước đó (debounce)
+unsigned long vibrationAlarmTime = 0;
+bool lastVibPin = HIGH; // Trạng thái trước để đếm transitions
 
 #define API_INTERVAL 300   // Poll unlock/alert API mỗi 300ms để mở tủ nhanh hơn
 #define BUZZER_SPEED 50
@@ -188,7 +188,7 @@ void setup()
   pinMode(PELTIER_PIN, OUTPUT);
   pinMode(PIR_PIN, INPUT);
   pinMode(REED_PIN, INPUT_PULLUP);
-  pinMode(VIBRATION_PIN, INPUT);
+  pinMode(VIBRATION_PIN, INPUT_PULLUP); // Pull-up chống pin floating gây false trigger
 
   digitalWrite(LED_RED, LOW);
   digitalWrite(LED_YELLOW, LOW);
@@ -338,34 +338,37 @@ void loop()
   if (manualSpotlight)
     digitalWrite(LED_WHITE, HIGH);
 
-  // ── Phát hiện rung động (chống nhiễu) ──────────────────────────────────
+  // ── Phát hiện rung động (đếm CHUYỂN TRẠNG THÁI, không phải LOW liên tục) ──
+  // SW-420 rung thật: LOW↔HIGH↔LOW nháy nhanh → nhiều transitions
+  // SW-420 stuck LOW (biến trở quá nhạy): không có transition → không báo
   if (millis() - lastVibrationReset > 5000)
   {
     bool curVibPin = digitalRead(VIBRATION_PIN);
-
-    // Chỉ đếm cạnh xuống (HIGH→LOW) để tránh đếm tràn do nhiễu liên tục
-    if (curVibPin == LOW && lastVibPin == HIGH)
+    if (curVibPin != lastVibPin) // Chỉ đếm khi có chuyển trạng thái
     {
       if (vibrationCount == 0)
         vibrationWindowStart = millis();
       vibrationCount++;
+      lastVibPin = curVibPin;
 
-      // Ngưỡng: 8 cạnh xuống THỰC SỰ trong 400ms → mới báo động
-      // (SW-420 gõ nhẹ ~3-5, gõ mạnh ~8-15, nhiễu điện ~1-2)
-      if (vibrationCount >= 8 && (millis() - vibrationWindowStart < 400))
+      // DEBUG calibrate: in ra số transitions và thời gian
+      Serial.printf("[VIB-DEBUG] Transitions=%d Time=%lums\n", vibrationCount, millis() - vibrationWindowStart);
+
+      // Ngưỡng: 6 transitions (3 chu kỳ LOW-HIGH) trong 500ms → rung thật
+      if (vibrationCount >= 6 && (millis() - vibrationWindowStart < 500))
       {
         if (!isVibration)
         {
           isVibration = true;
           vibrationAlarmTime = millis();
+          lastVibrationReset = millis();
+          vibrationCount = 0;
           Serial.println("[VIB] BAO DONG! Rung manh phat hien!");
         }
       }
     }
-    lastVibPin = curVibPin;
-
-    // Reset bộ đếm nếu cửa sổ thời gian đã qua
-    if (millis() - vibrationWindowStart >= 600)
+    // Reset sau 600ms không có transition mới
+    if (vibrationCount > 0 && (millis() - vibrationWindowStart >= 600))
       vibrationCount = 0;
   }
 

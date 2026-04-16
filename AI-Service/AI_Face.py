@@ -414,10 +414,12 @@ class FaceRecognitionApp:
                                     emb = emb / np.linalg.norm(emb)
                                     
                                     distances, indices = self.classifier.kneighbors([emb])
-                                    if distances[0][0] < 1.2: # Nguong 1.3 cho InsightFace
-                                        label_idx = self.classifier.predict([emb])[0]
-                                        name = self.encoder.inverse_transform([label_idx])[0]
-                                        self.tracked_identities[track_id] = name
+                                    dist = distances[0][0]
+                                    label_idx = self.classifier.predict([emb])[0]
+                                    pred_name = self.encoder.inverse_transform([label_idx])[0]
+                                    print(f"[CCTV-DEBUG] dist={dist:.3f} → pred={pred_name} ({'MATCH' if dist < 1.3 else 'STRANGER'})")
+                                    if dist < 1.3: # Tăng lên 1.3 (từ 1.2) vì DB có cả embedding webcam + ESP32-CAM sim
+                                        self.tracked_identities[track_id] = pred_name
                     
                     name = self.tracked_identities.get(track_id, "Stranger")
                     
@@ -553,6 +555,24 @@ class FaceRecognitionApp:
             percent_lbl.pack()
 
             def worker():
+                # ── Hàm giả lập chất lượng ảnh ESP32-CAM OV2640 ──────────────────
+                def degrade_to_esp32cam(img):
+                    h, w = img.shape[:2]
+                    # 1. Resize xuống QVGA (giống ESP32-CAM khi không có PSRAM)
+                    small = cv2.resize(img, (320, 240), interpolation=cv2.INTER_AREA)
+                    # 2. Nén JPEG chất lượng thấp (giống nén onboard ESP32-CAM q=10)
+                    _, encoded = cv2.imencode('.jpg', small, [cv2.IMWRITE_JPEG_QUALITY, 10])
+                    degraded = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+                    # 3. Resize lại về kích thước gốc để InsightFace xử lý được
+                    degraded = cv2.resize(degraded, (w, h), interpolation=cv2.INTER_CUBIC)
+                    # 4. Shift màu lạnh hơn (ESP32-CAM OV2640 thiên về cool white)
+                    degraded = degraded.astype(np.float32)
+                    degraded[:,:,0] *= 1.05  # Blue tăng nhẹ
+                    degraded[:,:,2] *= 0.92  # Red giảm nhẹ
+                    degraded = np.clip(degraded, 0, 255).astype(np.uint8)
+                    return degraded
+                # ─────────────────────────────────────────────────────────────────
+
                 embs = []
                 folder = f"dataset/train/{staff_name}"
                 try:
@@ -564,17 +584,26 @@ class FaceRecognitionApp:
                 for idx, img_name in enumerate(files):
                     img = cv2.imread(os.path.join(folder, img_name))
                     if img is not None:
+                        # Embedding gốc từ webcam
                         faces = self.face_app.get(img)
-                        if len(faces)>0: 
+                        if len(faces) > 0:
                             emb = faces[0].embedding
                             emb = emb / np.linalg.norm(emb)
                             embs.append(emb)
+
+                            # Embedding augmented (giả lập ESP32-CAM) → giải quyết domain mismatch
+                            degraded = degrade_to_esp32cam(img)
+                            faces_deg = self.face_app.get(degraded)
+                            if len(faces_deg) > 0:
+                                emb_deg = faces_deg[0].embedding
+                                emb_deg = emb_deg / np.linalg.norm(emb_deg)
+                                embs.append(emb_deg)
                     
                     # Update tick qua Toplevel Progress Bar
                     def update_ui(current=idx+1, total=total_files):
                         if total > 0:
                             progress_bar['value'] = (current / total) * 100
-                            percent_lbl.config(text=f"{current}/{total} bức ảnh")
+                            percent_lbl.config(text=f"{current}/{total} bức ảnh (webcam + ESP32-CAM sim)")
                     self.root.after(0, update_ui)
                 
                 if embs:

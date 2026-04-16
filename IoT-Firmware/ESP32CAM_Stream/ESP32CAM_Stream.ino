@@ -39,7 +39,7 @@
 // → Lưu xong, ESP32-CAM kết nối và nhớ mãi
 
 // IP mặc định AI-Service (sẽ bị ghi đè bởi WiFiManager portal)
-char AI_SERVICE_IP[40] = "192.168.1.100";
+char AI_SERVICE_IP[40] = "192.168.1.37"; // IP laptop chay AI-Service
 const int AI_SERVICE_PORT = 5001;
 
 // Cloud BE để poll face-scan-status (Admin bấm nút mở tủ từ web)
@@ -246,7 +246,13 @@ void setup() {
 
   WiFiManager wm;
   wm.addParameter(&param_ai_ip);
-  wm.setConfigPortalTimeout(120); // Timeout 2 phút nếu không ai cấu hình
+  wm.setConfigPortalTimeout(120);
+
+  // Xóa cache IP cũ để dùng IP mới từ code
+  prefs.begin("cam-cfg", false);
+  prefs.remove("ai_ip"); // Xóa IP cũ (192.168.1.100)
+  prefs.end();
+  Serial.println("[CFG] Đã reset IP cache → dùng IP mặc định: 192.168.1.37");
 
   // Tên hotspot khi chưa có WiFi: "SmartVault_CAM"
   bool connected = wm.autoConnect("SmartVault_CAM");
