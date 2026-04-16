@@ -618,7 +618,7 @@ class FaceRecognitionApp:
                         distances, _ = self.classifier.kneighbors([avg_emb])
                         
                         # Ngưỡng giống nhau. Càng nhỏ càng giống.
-                        if distances[0][0] < 1.25: 
+                        if distances[0][0] < 1.4: 
                             label_idx = self.classifier.predict([avg_emb])[0]
                             exist_name = self.encoder.inverse_transform([label_idx])[0]
                             # Nếu tên không khớp nhưng mặt giống một người khác -> Có người làm giả / Đăng ký 2 lần
@@ -761,12 +761,7 @@ if __name__ == "__main__":
                     frame = cv2.resize(frame, (int(w_img*scale), int(h_img*scale)), interpolation=cv2.INTER_CUBIC)
                     print(f"[FACE-VERIFY] Ảnh nhỏ, đã upscale: {frame.shape}")
 
-                # 2. Tăng độ tương phản nhẹ để mặt sắc hơn (CLAHE trên LAB)
-                lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-                lab[:,:,0] = clahe.apply(lab[:,:,0])
-                frame = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
-
+                # Đã loại bỏ CLAHE vì nó làm hỏng mặt và sinh ra nhiễu hạt lớn khi ảnh vốn đã sáng từ đèn Flash.
                 # Nhận diện khuôn mặt bằng InsightFace
                 faces = app.face_app.get(frame)
                 if len(faces) == 0:

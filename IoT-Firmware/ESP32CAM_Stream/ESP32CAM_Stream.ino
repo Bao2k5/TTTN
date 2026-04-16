@@ -130,96 +130,96 @@ void scanFaceAndUnlock() {
   if (isProcessing) return; // Chống double-click
   isProcessing = true;
 
-  Serial.println("\n[SCAN] === Bắt đầu quét khuôn mặt ===");
+  Serial.println("\n[SCAN] === Bắt đầu luồng Quét Khuôn Mặt (Có Auto-Retry) ===");
 
-  // 1. Flash LED bật sớm để sensor kịp điều chỉnh độ sáng
-  digitalWrite(FLASH_LED_PIN, HIGH);
-  delay(500); // Tăng lên 500ms để AEC ổn định
+  int max_retries = 3; // Số lần cho phép tự chụp lại nếu lỡ lọt ra ngoài camera
+  
+  for (int attempt = 1; attempt <= max_retries; attempt++) {
+    Serial.printf("\n[SCAN] --- LẦN CHỤP THỨ %d ---\n", attempt);
+    // KHÔNG DÙNG ĐÈN FLASH NỮA (Chụp âm thầm)
+    // LƯU Ý MẠNG: Cần chờ khoảng 1 giây để Sensor cảm biến lấy nét và bù sáng (AEC).
+    // Nếu chụp giật ngay lập tức, ảnh sẽ bị mù mịt -> AI không thấy mặt.
+    delay(1000); 
 
-  // 2. Xả frame cũ đang nằm trong buffer (tránh ảnh tối bị chụp sẵn từ trước)
-  camera_fb_t* stale = esp_camera_fb_get();
-  if (stale) esp_camera_fb_return(stale);
-  stale = esp_camera_fb_get();
-  if (stale) esp_camera_fb_return(stale);
-  delay(50); // Để sensor ổn định thêm một nhịp
+    // Xả bỏ 2 khung hình khởi động cũ trong buffer để lấy ảnh tươi nhất
+    camera_fb_t* stale = esp_camera_fb_get();
+    if (stale) esp_camera_fb_return(stale);
+    stale = esp_camera_fb_get();
+    if (stale) esp_camera_fb_return(stale);
+    delay(50);
 
-  // 3. Chụp ảnh tươi nhất
-  camera_fb_t* fb = esp_camera_fb_get();
-  digitalWrite(FLASH_LED_PIN, LOW);
+    // 3. TÁCH! Chụp ảnh tươi nhất
+    camera_fb_t* fb = esp_camera_fb_get();
 
-  if (!fb) {
-    Serial.println("[CAM] Lỗi: Không chụp được ảnh!");
-    isProcessing = false;
-    return;
-  }
-
-  Serial.printf("[CAM] Đã chụp ảnh: %d bytes (%dx%d)\n", fb->len, fb->width, fb->height);
-
-  // 3. POST ảnh lên BE
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[WIFI] Mất kết nối WiFi!");
-    esp_camera_fb_return(fb);
-    isProcessing = false;
-    return;
-  }
-
-  HTTPClient http;
-  String verifyUrl = "http://" + String(AI_SERVICE_IP) + ":" + String(AI_SERVICE_PORT) + "/face-verify";
-  http.begin(verifyUrl);
-  http.setTimeout(10000); // Timeout 10s (AI cần thời gian xử lý)
-  http.addHeader("Content-Type", "image/jpeg");
-
-  Serial.printf("[HTTP] POST đến AI-Service: %s\n", verifyUrl.c_str());
-  int httpCode = http.POST(fb->buf, fb->len);
-  esp_camera_fb_return(fb); // Giải phóng bộ nhớ camera ngay sau khi gửi
-
-  // 4. Xử lý kết quả
-  if (httpCode == 200) {
-    String response = http.getString();
-    Serial.printf("[HTTP] Response: %s\n", response.c_str());
-
-    // Parse JSON: { "matched": true, "name": "Nguyen Van A" }
-    StaticJsonDocument<256> doc;
-    DeserializationError error = deserializeJson(doc, response);
-
-    if (!error) {
-      bool matched = doc["matched"] | false;
-      const char* name = doc["name"] | "Unknown";
-
-      if (matched) {
-        Serial.printf("[ACCESS] ✅ NHẬN DIỆN THÀNH CÔNG: %s\n", name);
-        Serial.println("[ACCESS] AI-Service đã tự động gửi lệnh mở khóa tủ!");
-        // AI-Service đã tự gọi trigger-unlock lên cloud BE rồi
-        // Chỉ cần nháy LED xanh báo thành công
-        for (int i = 0; i < 3; i++) {
-          digitalWrite(FLASH_LED_PIN, HIGH); delay(150);
-          digitalWrite(FLASH_LED_PIN, LOW);  delay(150);
-        }
-      } else {
-        Serial.printf("[ACCESS] ❌ KHÔNG NHẬN DIỆN ĐƯỢC! (Phát hiện: %s)\n", name);
-        // Nháy LED nhanh 5 lần báo thất bại
-        for (int i = 0; i < 5; i++) {
-          digitalWrite(FLASH_LED_PIN, HIGH); delay(80);
-          digitalWrite(FLASH_LED_PIN, LOW);  delay(80);
-        }
-      }
-    } else {
-      Serial.printf("[JSON] Parse lỗi: %s\n", error.c_str());
+    if (!fb) {
+      Serial.println("[CAM] Lỗi: Không chụp được ảnh!");
+      isProcessing = false;
+      return;
     }
 
-  } else if (httpCode < 0) {
-    Serial.printf("[HTTP] Lỗi kết nối AI-Service: %d\n", httpCode);
-    Serial.printf("[HTTP] Kiểm tra IP: %s và port %d\n", AI_SERVICE_IP, AI_SERVICE_PORT);
-  } else {
-    Serial.printf("[HTTP] Lỗi HTTP: %d\n", httpCode);
+    Serial.printf("[CAM] Đã chụp ảnh: %d bytes (%dx%d)\n", fb->len, fb->width, fb->height);
+
+    // 4. POST ảnh lên BE
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("[WIFI] Mất kết nối WiFi!");
+      esp_camera_fb_return(fb);
+      isProcessing = false;
+      return;
+    }
+
+    HTTPClient http;
+    String verifyUrl = "http://" + String(AI_SERVICE_IP) + ":" + String(AI_SERVICE_PORT) + "/face-verify";
+    http.begin(verifyUrl);
+    http.setTimeout(10000); // Timeout 10s (AI cần thời gian xử lý)
+    http.addHeader("Content-Type", "image/jpeg");
+
+    Serial.printf("[HTTP] POST đến AI-Service: %s\n", verifyUrl.c_str());
+    int httpCode = http.POST(fb->buf, fb->len);
+    esp_camera_fb_return(fb); // Giải phóng bộ nhớ camera ngay sau khi gửi
+
+    // 5. Xử lý kết quả
+    if (httpCode == 200) {
+      String response = http.getString();
+      Serial.printf("[HTTP] Response: %s\n", response.c_str());
+
+      // Parse JSON: { "matched": true, "name": "Nguyen Van A" }
+      StaticJsonDocument<256> doc;
+      DeserializationError error = deserializeJson(doc, response);
+
+      if (!error) {
+        bool matched = doc["matched"] | false;
+        String nameStr = doc["name"] | "Unknown";
+
+        if (matched) {
+          Serial.printf("[ACCESS] ✅ NHẬN DIỆN THÀNH CÔNG: %s\n", nameStr.c_str());
+          Serial.println("[ACCESS] AI-Service đã tự động gửi lệnh mở khóa tủ!");
+          isProcessing = false;
+          return; // THOÁT LUÔN! THÀNH CÔNG RỒI
+        } else {
+          Serial.printf("[ACCESS] ❌ KHÔNG MỞ CỬA! (Phát hiện: %s)\n", nameStr.c_str());
+          
+          // NẾU KHÔNG CÓ MẶT (Có thể người dùng đang loay hoay căn góc) MÀ CÒN SỐ LẦN RETRY -> Tự chụp lại
+          if (nameStr == "No face detected" && attempt < max_retries) {
+            Serial.println("[AI] AI không phát hiện khuôn mặt! Đang tự động quét lại (Retry)...");
+            continue; // Chạy lại vòng lặp mới, tự chụp lại ngay
+          } else {
+            // NẾU ĐÃ LÀ NGƯỜI LẠ (Phát hiện mặt kẻ trộm) HOẶC HẾT SỐ LẦN -> KẾT THÚC
+            Serial.println("[AI] Hủy quét. Báo lỗi về cho Web Admin.");
+            isProcessing = false;
+            return;
+          }
+        }
+      } else {
+        Serial.printf("[JSON] Parse lỗi: %s\n", error.c_str());
+      }
+    } else {
+      Serial.printf("[HTTP] Lỗi HTTP kết nối AI: %d\n", httpCode);
+    }
+    http.end();
   }
 
-  http.end();
-  
-  // 5. Cooldown 1 giây trước khi cho quét lại
-  delay(1000);
   isProcessing = false;
-  Serial.println("[SCAN] === Sẵn sàng quét lại ===\n");
+  Serial.println("[SCAN] === Kết thúc (Thất bại) ===\n");
 }
 
 void setup() {
