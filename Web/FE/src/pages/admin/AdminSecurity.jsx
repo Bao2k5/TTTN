@@ -93,6 +93,7 @@ const AdminSecurity = () => {
         }
     };
 
+
     useEffect(() => {
         fetchLogs();
         
@@ -255,6 +256,8 @@ const AdminSecurity = () => {
                     </button>
                 </div>
             </div>
+
+
 
             <div className="bg-white rounded-lg shadow-sm border border-luxury-platinum overflow-hidden">
                 {loading ? (

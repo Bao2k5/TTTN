@@ -578,19 +578,42 @@ class FaceRecognitionApp:
                     self.root.after(0, update_ui)
                 
                 if embs:
-                    buf = __import__('io').BytesIO()
-                    np.save(buf, np.array(embs))
-                    payload = {
-                        'name': staff_name, 
-                        'embeddings': Binary(buf.getvalue()),
-                        'is_authorized': is_authorized
-                    }
-                    self.collection.replace_one({'name': staff_name}, payload, upsert=True)
-                    
-                    self.tracked_identities = {} 
-                    self.load_known_faces()
-                    self.root.after(0, lambda: loading_win.destroy())
-                    self.root.after(0, lambda: messagebox.showinfo("Hoàn thành", "Đăng ký thành công!"))
+                    # --- BƯỚC KIỂM TRA CHỐNG TRÙNG LẶP (ANTI DEDUPLICATION) ---
+                    is_duplicated = False
+                    duplicated_name = ""
+                    if self.classifier is not None and len(embs) > 0:
+                        # Tính trung bình đặc trưng khuôn mặt từ 20 ảnh vừa chụp cho chuẩn
+                        avg_emb = np.mean(embs, axis=0) 
+                        avg_emb = avg_emb / np.linalg.norm(avg_emb)
+                        distances, _ = self.classifier.kneighbors([avg_emb])
+                        
+                        # Ngưỡng giống nhau. Càng nhỏ càng giống.
+                        if distances[0][0] < 1.25: 
+                            label_idx = self.classifier.predict([avg_emb])[0]
+                            exist_name = self.encoder.inverse_transform([label_idx])[0]
+                            # Nếu tên không khớp nhưng mặt giống một người khác -> Có người làm giả / Đăng ký 2 lần
+                            if exist_name.lower() != staff_name.lower():
+                                is_duplicated = True
+                                duplicated_name = exist_name
+
+                    if is_duplicated:
+                        self.root.after(0, lambda: loading_win.destroy())
+                        msg = f"PHÁT HIỆN TRÙNG LẶP DỮ LIỆU!\n\nKhuôn mặt này thực chất trùng khớp với nhân viên: [{duplicated_name}].\nHệ thống từ chối đăng ký tài khoản nhân bản ảo!"
+                        self.root.after(0, lambda: messagebox.showerror("Cảnh báo An Ninh", msg))
+                    else:
+                        buf = __import__('io').BytesIO()
+                        np.save(buf, np.array(embs))
+                        payload = {
+                            'name': staff_name, 
+                            'embeddings': Binary(buf.getvalue()),
+                            'is_authorized': is_authorized
+                        }
+                        self.collection.replace_one({'name': staff_name}, payload, upsert=True)
+                        
+                        self.tracked_identities = {} 
+                        self.load_known_faces()
+                        self.root.after(0, lambda: loading_win.destroy())
+                        self.root.after(0, lambda: messagebox.showinfo("Hoàn thành", "Đăng ký thành công!"))
                 else:
                     self.root.after(0, lambda: loading_win.destroy())
                     self.root.after(0, lambda: messagebox.showerror("Lỗi", "Không tìm thấy khuôn mặt! Vui lòng thử lại."))
@@ -700,6 +723,20 @@ if __name__ == "__main__":
                 if app.classifier is None or not INSIGHTFACE_AVAILABLE:
                     return jsonify({"matched": False, "name": "Chưa đăng ký nhân viên nào"}), 200
 
+                # Tiền xử lý ảnh từ ESP32-CAM (nâng chất lượng nhận diện)
+                # 1. Đảm bảo ảnh đủ lớn (InsightFace cần tối thiểu 112x112 để extract emb)
+                h_img, w_img = frame.shape[:2]
+                if h_img < 480 or w_img < 640:
+                    scale = max(640/w_img, 480/h_img)
+                    frame = cv2.resize(frame, (int(w_img*scale), int(h_img*scale)), interpolation=cv2.INTER_CUBIC)
+                    print(f"[FACE-VERIFY] Ảnh nhỏ, đã upscale: {frame.shape}")
+
+                # 2. Tăng độ tương phản nhẹ để mặt sắc hơn (CLAHE trên LAB)
+                lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+                lab[:,:,0] = clahe.apply(lab[:,:,0])
+                frame = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+
                 # Nhận diện khuôn mặt bằng InsightFace
                 faces = app.face_app.get(frame)
                 if len(faces) == 0:
@@ -713,7 +750,7 @@ if __name__ == "__main__":
                 distances, _ = app.classifier.kneighbors([emb])
                 dist = distances[0][0]
 
-                if dist < 1.3:  # Ngưỡng nhận diện InsightFace
+                if dist < 1.4:  # Nới lỏng hơn 1.25: bù cho domain mismatch webcam training vs ESP32-CAM (ảnh ESP32 có màu sắc/chất lượng khác webcam)
                     label_idx = app.classifier.predict([emb])[0]
                     name = app.encoder.inverse_transform([label_idx])[0]
                     is_authorized = name in app.authorized_users

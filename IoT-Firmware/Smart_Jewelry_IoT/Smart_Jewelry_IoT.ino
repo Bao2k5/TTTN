@@ -54,6 +54,8 @@ unsigned long lastMotionTime = 0;
 unsigned long lastVibrationReset = 0;
 int vibrationCount = 0;
 unsigned long vibrationWindowStart = 0;
+unsigned long vibrationAlarmTime = 0;  // Thời điểm bắt đầu báo rung
+bool lastVibPin = HIGH;                // Trạng thái pin rung trước đó (debounce)
 
 #define API_INTERVAL 300   // Poll unlock/alert API mỗi 300ms để mở tủ nhanh hơn
 #define BUZZER_SPEED 50
@@ -336,24 +338,45 @@ void loop()
   if (manualSpotlight)
     digitalWrite(LED_WHITE, HIGH);
 
+  // ── Phát hiện rung động (chống nhiễu) ──────────────────────────────────
   if (millis() - lastVibrationReset > 5000)
   {
-    if (digitalRead(VIBRATION_PIN) == LOW)
+    bool curVibPin = digitalRead(VIBRATION_PIN);
+
+    // Chỉ đếm cạnh xuống (HIGH→LOW) để tránh đếm tràn do nhiễu liên tục
+    if (curVibPin == LOW && lastVibPin == HIGH)
     {
       if (vibrationCount == 0)
         vibrationWindowStart = millis();
       vibrationCount++;
-      if (vibrationCount >= 30 && (millis() - vibrationWindowStart < 300))
+
+      // Ngưỡng: 8 cạnh xuống THỰC SỰ trong 400ms → mới báo động
+      // (SW-420 gõ nhẹ ~3-5, gõ mạnh ~8-15, nhiễu điện ~1-2)
+      if (vibrationCount >= 8 && (millis() - vibrationWindowStart < 400))
       {
         if (!isVibration)
         {
           isVibration = true;
-          Serial.println("[VIB] BAO DONG!");
+          vibrationAlarmTime = millis();
+          Serial.println("[VIB] BAO DONG! Rung manh phat hien!");
         }
       }
-      if (millis() - vibrationWindowStart >= 500)
-        vibrationCount = 0;
     }
+    lastVibPin = curVibPin;
+
+    // Reset bộ đếm nếu cửa sổ thời gian đã qua
+    if (millis() - vibrationWindowStart >= 600)
+      vibrationCount = 0;
+  }
+
+  // Auto-reset báo rung sau 30 giây (tránh cói kêu mãi do false trigger)
+  if (isVibration && !isAlarm && (millis() - vibrationAlarmTime > 30000))
+  {
+    isVibration = false;
+    buzzerState = false;
+    digitalWrite(BUZZER, LOW);
+    vibrationCount = 0;
+    Serial.println("[VIB] Tu reset sau 30s.");
   }
 
   if (isAlarm != lastAlarm || isVibration != lastVibration)

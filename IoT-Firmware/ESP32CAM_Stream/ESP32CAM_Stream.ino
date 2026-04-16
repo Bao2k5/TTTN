@@ -74,7 +74,7 @@ Preferences prefs; // Để lưu AI_SERVICE_IP vào flash
 bool isProcessing = false;
 unsigned long lastScanTime = 0;
 unsigned long lastPollTime = 0;
-#define SCAN_INTERVAL 1500  // Auto-scan mỗi 1.5 giây
+#define SCAN_INTERVAL 3000  // Auto-scan mỗi 3 giây (giảm tải, đủ để nhận diện)
 #define POLL_INTERVAL 1000  // Poll BE mỗi 1 giây xem Admin có bấm nút chưa
 
 
@@ -94,12 +94,12 @@ bool initCamera() {
   config.pixel_format = PIXFORMAT_JPEG;
 
   if (psramFound()) {
-    config.frame_size   = FRAMESIZE_VGA;  // 640x480 - Đủ để nhận diện khuôn mặt
-    config.jpeg_quality = 10;             // Chất lượng tốt (0-63, nhỏ=tốt)
+    config.frame_size   = FRAMESIZE_SVGA; // 800x600 - Tốt hơn cho nhận diện khuôn mặt
+    config.jpeg_quality = 8;              // Chất lượng cao hơn (ảnh nét hơn, ít nhiễu hơn)
     config.fb_count     = 2;
   } else {
-    config.frame_size   = FRAMESIZE_QVGA; // 320x240 fallback
-    config.jpeg_quality = 12;
+    config.frame_size   = FRAMESIZE_VGA;  // 640x480 fallback (đủ tốt)
+    config.jpeg_quality = 10;
     config.fb_count     = 1;
   }
 
@@ -132,11 +132,18 @@ void scanFaceAndUnlock() {
 
   Serial.println("\n[SCAN] === Bắt đầu quét khuôn mặt ===");
 
-  // 1. Flash LED báo đang chụp
+  // 1. Flash LED bật sớm để sensor kịp điều chỉnh độ sáng
   digitalWrite(FLASH_LED_PIN, HIGH);
-  delay(200); // Chớp sáng 0.2s
-  
-  // 2. Chụp ảnh
+  delay(500); // Tăng lên 500ms để AEC ổn định
+
+  // 2. Xả frame cũ đang nằm trong buffer (tránh ảnh tối bị chụp sẵn từ trước)
+  camera_fb_t* stale = esp_camera_fb_get();
+  if (stale) esp_camera_fb_return(stale);
+  stale = esp_camera_fb_get();
+  if (stale) esp_camera_fb_return(stale);
+  delay(50); // Để sensor ổn định thêm một nhịp
+
+  // 3. Chụp ảnh tươi nhất
   camera_fb_t* fb = esp_camera_fb_get();
   digitalWrite(FLASH_LED_PIN, LOW);
 

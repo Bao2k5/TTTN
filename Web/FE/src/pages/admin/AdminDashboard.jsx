@@ -73,7 +73,7 @@ const AdminDashboard = () => {
     try {
       await api.post('/security/face-scan-trigger');
       setFaceIdState('scanning');
-      setCountdown(30);
+      setCountdown(60);
 
       // Đếm ngược 30 giây
       countdownRef.current = setInterval(() => {
@@ -99,13 +99,13 @@ const AdminDashboard = () => {
         } catch { /* ignore */ }
       }, 2000);
 
-      // Timeout 32 giây: nếu không mở được thì báo fail
+      // Timeout 62 giây: nếu không mở được thì báo fail
       setTimeout(() => {
         clearInterval(pollRef.current);
         clearInterval(countdownRef.current);
         setFaceIdState(prev => prev === 'scanning' ? 'fail' : prev);
         setTimeout(() => setFaceIdState('idle'), 3000);
-      }, 32000);
+      }, 62000);
 
     } catch (error) {
       console.error('Face scan trigger error:', error);
@@ -385,7 +385,7 @@ const AdminDashboard = () => {
                       stroke="#92400e" strokeWidth="8"
                       strokeLinecap="round"
                       strokeDasharray={`${2 * Math.PI * 45}`}
-                      strokeDashoffset={`${2 * Math.PI * 45 * (1 - countdown / 30)}`}
+                      strokeDashoffset={`${2 * Math.PI * 45 * (1 - countdown / 60)}`}
                       className="transition-all duration-1000"
                     />
                   </svg>
