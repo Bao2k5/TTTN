@@ -4,78 +4,31 @@
 #include <wm_strings_en.h>
 #include <wm_strings_es.h>
 
-/**
- * ESP32-CAM - Face Verify to Unlock Door
- * Dự án: Smart Jewelry Vault
- * 
- * Luồng hoạt động:
- *   1. Phát hiện người đứng trước (nút nhấn hoặc PIR sensor)
- *   2. Chụp ảnh khuôn mặt
- *   3. POST ảnh JPEG lên BE: POST /api/security/face-verify
- *   4. Nhận kết quả JSON: { "matched": true, "name": "Nguyen Van A" }
- *   5. Nếu matched → gọi trigger-unlock để mở tủ
- * 
- * Board: AI Thinker ESP32-CAM
- * Thư viện cần cài:
- *   - esp32 by Espressif (Board Manager)
- *   - ArduinoJson by Benoit Blanchon
- *   - WiFiManager by tzapu (Library Manager)
- */
+
 
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
-#include <WiFiManager.h>     // Kết nối WiFi thông minh qua điện thoại
-#include <Preferences.h>     // Lưu cấu hình vào flash
+#include <WiFiManager.h>
+#include <Preferences.h>
 #include "esp_camera.h"
 
-// ==================== CẤU HÌNH ====================
-// KHÔNG cần hardcode WiFi!
-// Lần đầu bật lên: ESP32-CAM tạo hotspot "SmartVault_CAM"
-// → Dùng điện thoại kết nối vào hotspot đó
-// → Trình duyệt tự mở trang cấu hình
-// → Nhập tên WiFi + mật khẩu + IP laptop AI-Service
-// → Lưu xong, ESP32-CAM kết nối và nhớ mãi
-
-// IP mặc định AI-Service (sẽ bị ghi đè bởi WiFiManager portal)
-char AI_SERVICE_IP[40] = "192.168.1.37"; // IP laptop chay AI-Service
+char AI_SERVICE_IP[40] = "192.168.1.37";
 const int AI_SERVICE_PORT = 5001;
 
-// Cloud BE để poll face-scan-status (Admin bấm nút mở tủ từ web)
 const char* BE_BASE_URL = "https://hm-vault.zapto.org/api/security";
 const char* DEVICE_KEY = "IoT_Secure_Vault_2024";
 
-Preferences prefs; // Để lưu AI_SERVICE_IP vào flash
-// =====================================================
+Preferences prefs;
 
-// ==================== CHÂN PIN AI THINKER ESP32-CAM ====================
-#define PWDN_GPIO_NUM     32
-#define RESET_GPIO_NUM    -1
-#define XCLK_GPIO_NUM      0
-#define SIOD_GPIO_NUM     26
-#define SIOC_GPIO_NUM     27
-#define Y9_GPIO_NUM       35
-#define Y8_GPIO_NUM       34
-#define Y7_GPIO_NUM       39
-#define Y6_GPIO_NUM       36
-#define Y5_GPIO_NUM       21
-#define Y4_GPIO_NUM       19
-#define Y3_GPIO_NUM       18
-#define Y2_GPIO_NUM        5
-#define VSYNC_GPIO_NUM    25
-#define HREF_GPIO_NUM     23
-#define PCLK_GPIO_NUM     22
+#define FLASH_LED_PIN      4
 
-#define FLASH_LED_PIN      4  // Flash LED (nháy khi chụp)
-// =======================================================
-
-// Trạng thái
 bool isProcessing = false;
 unsigned long lastScanTime = 0;
 unsigned long lastPollTime = 0;
-#define SCAN_INTERVAL 3000  // Auto-scan mỗi 3 giây (giảm tải, đủ để nhận diện)
-#define POLL_INTERVAL 1000  // Poll BE mỗi 1 giây xem Admin có bấm nút chưa
+#define SCAN_INTERVAL 3000
+#define POLL_INTERVAL 1000
 
 
 bool initCamera() {
@@ -94,11 +47,11 @@ bool initCamera() {
   config.pixel_format = PIXFORMAT_JPEG;
 
   if (psramFound()) {
-    config.frame_size   = FRAMESIZE_SVGA; // 800x600 - Tốt hơn cho nhận diện khuôn mặt
-    config.jpeg_quality = 8;              // Chất lượng cao hơn (ảnh nét hơn, ít nhiễu hơn)
+    config.frame_size   = FRAMESIZE_SVGA;
+    config.jpeg_quality = 8;
     config.fb_count     = 2;
   } else {
-    config.frame_size   = FRAMESIZE_VGA;  // 640x480 fallback (đủ tốt)
+    config.frame_size   = FRAMESIZE_VGA;
     config.jpeg_quality = 10;
     config.fb_count     = 1;
   }
@@ -109,57 +62,59 @@ bool initCamera() {
     return false;
   }
 
-  // Tối ưu cho nhận diện mặt trong nhà (tủ kính)
   sensor_t* s = esp_camera_sensor_get();
-  s->set_brightness(s, 1);    // Tăng độ sáng nhẹ
+  s->set_brightness(s, 1);
   s->set_contrast(s, 1);
   s->set_whitebal(s, 1);
   s->set_awb_gain(s, 1);
   s->set_exposure_ctrl(s, 1);
   s->set_aec2(s, 1);
   s->set_gain_ctrl(s, 1);
-  s->set_hmirror(s, 0);       // Không lật (camera nhìn thẳng vào mặt)
+  s->set_hmirror(s, 0);
+  s->set_vflip(s, 0);
   s->set_vflip(s, 0);
 
   Serial.println("[CAM] Khởi tạo OK!");
   return true;
 }
 
-// Chụp ảnh và gửi lên BE để nhận diện khuôn mặt
+
 void scanFaceAndUnlock() {
-  if (isProcessing) return; // Chống double-click
+  if (isProcessing) return; 
   isProcessing = true;
 
-  Serial.println("\n[SCAN] === Bắt đầu luồng Quét Khuôn Mặt (Có Auto-Retry) ===");
+  Serial.println("\n[SCAN] Bat dau quet khuon mat...");
 
-  int max_retries = 3; // Số lần cho phép tự chụp lại nếu lỡ lọt ra ngoài camera
+  int max_retries = 3;
   
   for (int attempt = 1; attempt <= max_retries; attempt++) {
-    Serial.printf("\n[SCAN] --- LẦN CHỤP THỨ %d ---\n", attempt);
-    // KHÔNG DÙNG ĐÈN FLASH NỮA (Chụp âm thầm)
-    // LƯU Ý MẠNG: Cần chờ khoảng 1 giây để Sensor cảm biến lấy nét và bù sáng (AEC).
-    // Nếu chụp giật ngay lập tức, ảnh sẽ bị mù mịt -> AI không thấy mặt.
+    Serial.printf("\n[SCAN] --- Lan chup thu %d ---\n", attempt);
+
     delay(1000); 
 
-    // Xả bỏ 2 khung hình khởi động cũ trong buffer để lấy ảnh tươi nhất
     camera_fb_t* stale = esp_camera_fb_get();
     if (stale) esp_camera_fb_return(stale);
     stale = esp_camera_fb_get();
     if (stale) esp_camera_fb_return(stale);
-    delay(50);
+    Serial.printf("[SCAN] --- Lay anh moi thu %d ---\n", attempt);
 
-    // 3. TÁCH! Chụp ảnh tươi nhất
-    camera_fb_t* fb = esp_camera_fb_get();
+    pinMode(4, OUTPUT);
+    digitalWrite(4, HIGH);
+    delay(400); 
+
+    camera_fb_t * fb = esp_camera_fb_get();
+
+    digitalWrite(4, LOW);
 
     if (!fb) {
-      Serial.println("[CAM] Lỗi: Không chụp được ảnh!");
-      isProcessing = false;
-      return;
+      Serial.println("[CAM] Loi: Khong the chup anh");
+      delay(1000);
+      continue;
     }
 
     Serial.printf("[CAM] Đã chụp ảnh: %d bytes (%dx%d)\n", fb->len, fb->width, fb->height);
 
-    // 4. POST ảnh lên BE
+
     if (WiFi.status() != WL_CONNECTED) {
       Serial.println("[WIFI] Mất kết nối WiFi!");
       esp_camera_fb_return(fb);
@@ -170,19 +125,17 @@ void scanFaceAndUnlock() {
     HTTPClient http;
     String verifyUrl = "http://" + String(AI_SERVICE_IP) + ":" + String(AI_SERVICE_PORT) + "/face-verify";
     http.begin(verifyUrl);
-    http.setTimeout(10000); // Timeout 10s (AI cần thời gian xử lý)
+    http.setTimeout(10000);
     http.addHeader("Content-Type", "image/jpeg");
 
     Serial.printf("[HTTP] POST đến AI-Service: %s\n", verifyUrl.c_str());
     int httpCode = http.POST(fb->buf, fb->len);
-    esp_camera_fb_return(fb); // Giải phóng bộ nhớ camera ngay sau khi gửi
+    esp_camera_fb_return(fb);
 
-    // 5. Xử lý kết quả
+
     if (httpCode == 200) {
       String response = http.getString();
-      Serial.printf("[HTTP] Response: %s\n", response.c_str());
 
-      // Parse JSON: { "matched": true, "name": "Nguyen Van A" }
       StaticJsonDocument<256> doc;
       DeserializationError error = deserializeJson(doc, response);
 
@@ -191,35 +144,32 @@ void scanFaceAndUnlock() {
         String nameStr = doc["name"] | "Unknown";
 
         if (matched) {
-          Serial.printf("[ACCESS] ✅ NHẬN DIỆN THÀNH CÔNG: %s\n", nameStr.c_str());
-          Serial.println("[ACCESS] AI-Service đã tự động gửi lệnh mở khóa tủ!");
+          Serial.printf("[ACCESS] Nhan dien thanh cong: %s\n", nameStr.c_str());
           isProcessing = false;
-          return; // THOÁT LUÔN! THÀNH CÔNG RỒI
+          return;
         } else {
-          Serial.printf("[ACCESS] ❌ KHÔNG MỞ CỬA! (Phát hiện: %s)\n", nameStr.c_str());
+          Serial.printf("[ACCESS] Tu choi truy cap: %s\n", nameStr.c_str());
           
-          // NẾU KHÔNG CÓ MẶT (Có thể người dùng đang loay hoay căn góc) MÀ CÒN SỐ LẦN RETRY -> Tự chụp lại
           if (nameStr == "No face detected" && attempt < max_retries) {
-            Serial.println("[AI] AI không phát hiện khuôn mặt! Đang tự động quét lại (Retry)...");
-            continue; // Chạy lại vòng lặp mới, tự chụp lại ngay
+            Serial.println("[AI] Khong thay khuon mat, dang chup lai...");
+            continue;
           } else {
-            // NẾU ĐÃ LÀ NGƯỜI LẠ (Phát hiện mặt kẻ trộm) HOẶC HẾT SỐ LẦN -> KẾT THÚC
-            Serial.println("[AI] Hủy quét. Báo lỗi về cho Web Admin.");
+            Serial.println("[AI] Ket thuc luong quet.");
             isProcessing = false;
             return;
           }
         }
       } else {
-        Serial.printf("[JSON] Parse lỗi: %s\n", error.c_str());
+        Serial.printf("[JSON] Parse loi: %s\n", error.c_str());
       }
     } else {
-      Serial.printf("[HTTP] Lỗi HTTP kết nối AI: %d\n", httpCode);
+      Serial.printf("[HTTP] Loi HTTP: %d\n", httpCode);
     }
     http.end();
   }
 
   isProcessing = false;
-  Serial.println("[SCAN] === Kết thúc (Thất bại) ===\n");
+  Serial.println("[SCAN] Ket thuc (That bai)\n");
 }
 
 void setup() {
@@ -229,55 +179,45 @@ void setup() {
   pinMode(FLASH_LED_PIN, OUTPUT);
   digitalWrite(FLASH_LED_PIN, LOW);
 
-  // Không cần GPIO ngoài - tự quét theo chu kỳ
-
-  // Khởi tạo camera
   if (!initCamera()) {
-    Serial.println("[ERROR] Camera lỗi! Kiểm tra kết nối phần cứng.");
-    while (true) { // Đứng yên nhấp nháy báo lỗi
+    Serial.println("[ERROR] Camera init failed!");
+    while (true) { 
       digitalWrite(FLASH_LED_PIN, HIGH); delay(100);
       digitalWrite(FLASH_LED_PIN, LOW);  delay(100);
     }
   }
 
-  // ===== KẾT NỐI WIFI BẰNG WIFIMANAGER =====
-  // Thêm custom parameter: IP của AI-Service
-  WiFiManagerParameter param_ai_ip("ai_ip", "IP Laptop chay AI-Service", AI_SERVICE_IP, 40);
+  WiFiManagerParameter param_ai_ip("ai_ip", "AI-Service IP", AI_SERVICE_IP, 40);
 
   WiFiManager wm;
   wm.addParameter(&param_ai_ip);
   wm.setConfigPortalTimeout(120);
 
-  // Xóa cache IP cũ để dùng IP mới từ code
   prefs.begin("cam-cfg", false);
-  prefs.remove("ai_ip"); // Xóa IP cũ (192.168.1.100)
+  prefs.remove("ai_ip"); 
   prefs.end();
-  Serial.println("[CFG] Đã reset IP cache → dùng IP mặc định: 192.168.1.37");
+  Serial.println("[CFG] Cache reset.");
 
-  // Tên hotspot khi chưa có WiFi: "SmartVault_CAM"
   bool connected = wm.autoConnect("SmartVault_CAM");
 
   if (!connected) {
-    Serial.println("[WIFI] Kết nối thất bại hoặc timeout! Restart...");
+    Serial.println("[WIFI] Connection failed. Restarting...");
     ESP.restart();
   }
 
-  // Lưu IP AI-Service vào flash nếu vừa được nhập qua portal
   String newIP = param_ai_ip.getValue();
   if (newIP.length() > 0 && newIP != String(AI_SERVICE_IP)) {
     newIP.toCharArray(AI_SERVICE_IP, sizeof(AI_SERVICE_IP));
     prefs.begin("cam-cfg", false);
     prefs.putString("ai_ip", newIP);
     prefs.end();
-    Serial.printf("[CFG] Đã lưu AI-Service IP: %s\n", AI_SERVICE_IP);
+    Serial.printf("[CFG] Saved AI-Service IP: %s\n", AI_SERVICE_IP);
   }
 
   Serial.println();
-  Serial.printf("[WIFI] Đã kết nối! IP: %s\n", WiFi.localIP().toString().c_str());
-  Serial.println("[INFO] Nhấn nút GPIO13 để quét khuôn mặt mở tủ.");
-  Serial.println("[INFO] (Hoặc tích hợp PIR sensor vào GPIO13)");
+  Serial.printf("[WIFI] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+  Serial.println("[INFO] Trigger GPIO13 to scan.");
 
-  // Nháy LED 3 lần báo ready
   for (int i = 0; i < 3; i++) {
     digitalWrite(FLASH_LED_PIN, HIGH); delay(200);
     digitalWrite(FLASH_LED_PIN, LOW);  delay(200);
@@ -287,38 +227,45 @@ void setup() {
 void loop() {
   unsigned long now = millis();
 
-  // === CHẾ ĐỘ 1: Admin bấm nút "Mở Tủ FaceID" trên web ===
-  // Poll BE mỗi 2 giây xem có yêu cầu quét mặt từ Admin không
   if (!isProcessing && (now - lastPollTime >= POLL_INTERVAL)) {
     lastPollTime = now;
+    
+    Serial.print("[POLL] Checking BE... ");
+    
     WiFiClientSecure client;
     client.setInsecure();
     HTTPClient http;
-    http.begin(client, String(BE_BASE_URL) + "/face-scan-status");
+    http.begin(client, String(BE_BASE_URL) + "/face-scan-status?t=" + String(now));
     http.addHeader("x-device-key", DEVICE_KEY);
-    http.setTimeout(3000);
+    http.setTimeout(5000);
+    
     int code = http.GET();
     if (code == 200) {
       String body = http.getString();
       StaticJsonDocument<128> doc;
-      if (!deserializeJson(doc, body) && doc["shouldScan"] == true) {
-        Serial.println("[POLL] Admin yêu cầu quét mặt từ Web! Đang quét...");
-        http.end();
-        scanFaceAndUnlock();
-        return;
+      DeserializationError err = deserializeJson(doc, body);
+      
+      if (!err) {
+        bool shouldScan = doc["shouldScan"] | false;
+        Serial.printf("OK. shouldScan = %s\n", shouldScan ? "TRUE" : "FALSE");
+        
+        if (shouldScan) {
+          Serial.println("[POLL] Yeu cau quet mat tu Web!");
+          http.end();
+          scanFaceAndUnlock();
+          return;
+        }
+      } else {
+        Serial.printf("JSON Lỗi: %s\n", err.c_str());
       }
+    } else {
+       Serial.printf("HTTP_GET_FAILED: %d\n", code);
     }
     http.end();
   }
 
-  // === CHẾ ĐỘ 2: Tự động quét ĐÃ TẮT ===
-  // Chỉ scan khi Admin bấm nút trên web (Chế độ 1)
-  // if (!isProcessing && (now - lastScanTime >= SCAN_INTERVAL)) {
-  //   lastScanTime = now;
-  //   scanFaceAndUnlock();
-  // }
 
-  // Giữ kết nối WiFi
+
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[WIFI] Mất kết nối, đang kết nối lại...");
     WiFi.reconnect();

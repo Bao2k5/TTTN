@@ -13,7 +13,7 @@
 #include <BlynkSimpleEsp32.h>
 #include <WiFiManager.h>
 
-// --- Backend Configuration ---
+
 String baseUrl = "https://hm-vault.zapto.org/api/security";
 String deviceKey = "IoT_Secure_Vault_2024";
 
@@ -55,9 +55,9 @@ unsigned long lastVibrationReset = 0;
 int vibrationCount = 0;
 unsigned long vibrationWindowStart = 0;
 unsigned long vibrationAlarmTime = 0;
-bool lastVibPin = HIGH; // Trạng thái trước để đếm transitions
+bool lastVibPin = HIGH; 
 
-#define API_INTERVAL 300   // Poll unlock/alert API mỗi 300ms để mở tủ nhanh hơn
+#define API_INTERVAL 300   
 #define BUZZER_SPEED 50
 #define SPOTLIGHT_TIME 15000
 
@@ -100,7 +100,7 @@ BLYNK_WRITE(V1)
     http.begin(client, baseUrl + "/reset-alarm");
     http.addHeader("Content-Type", "application/json");
     http.addHeader("x-device-key", deviceKey);
-    int code = http.POST("{\"pin\":\"1234\"}"); // Gửi PIN mặc định
+    int code = http.POST("{\"pin\":\"1234\"}"); 
     http.end();
   }
 }
@@ -131,7 +131,7 @@ void sendSensorData()
 
     Blynk.virtualWrite(V5, isDoorOpen ? 255 : 0);
 
-    // Gửi dữ liệu nhiệt độ/độ ẩm lên backend để lưu DB
+
     if (WiFi.status() == WL_CONNECTED)
     {
       WiFiClientSecure client;
@@ -188,7 +188,7 @@ void setup()
   pinMode(PELTIER_PIN, OUTPUT);
   pinMode(PIR_PIN, INPUT);
   pinMode(REED_PIN, INPUT_PULLUP);
-  pinMode(VIBRATION_PIN, INPUT_PULLUP); // Pull-up chống pin floating gây false trigger
+  pinMode(VIBRATION_PIN, INPUT_PULLUP); 
 
   digitalWrite(LED_RED, LOW);
   digitalWrite(LED_YELLOW, LOW);
@@ -338,23 +338,19 @@ void loop()
   if (manualSpotlight)
     digitalWrite(LED_WHITE, HIGH);
 
-  // ── Phát hiện rung động (đếm CHUYỂN TRẠNG THÁI, không phải LOW liên tục) ──
-  // SW-420 rung thật: LOW↔HIGH↔LOW nháy nhanh → nhiều transitions
-  // SW-420 stuck LOW (biến trở quá nhạy): không có transition → không báo
+
   if (millis() - lastVibrationReset > 5000)
   {
     bool curVibPin = digitalRead(VIBRATION_PIN);
-    if (curVibPin != lastVibPin) // Chỉ đếm khi có chuyển trạng thái
+    if (curVibPin != lastVibPin) 
     {
       if (vibrationCount == 0)
         vibrationWindowStart = millis();
       vibrationCount++;
       lastVibPin = curVibPin;
 
-      // DEBUG calibrate: in ra số transitions và thời gian
       Serial.printf("[VIB-DEBUG] Transitions=%d Time=%lums\n", vibrationCount, millis() - vibrationWindowStart);
 
-      // Ngưỡng: 6 transitions (3 chu kỳ LOW-HIGH) trong 500ms → rung thật
       if (vibrationCount >= 6 && (millis() - vibrationWindowStart < 500))
       {
         if (!isVibration)
@@ -367,12 +363,11 @@ void loop()
         }
       }
     }
-    // Reset sau 600ms không có transition mới
     if (vibrationCount > 0 && (millis() - vibrationWindowStart >= 600))
       vibrationCount = 0;
   }
 
-  // Auto-reset báo rung sau 30 giây (tránh cói kêu mãi do false trigger)
+
   if (isVibration && !isAlarm && (millis() - vibrationAlarmTime > 30000))
   {
     isVibration = false;
@@ -433,7 +428,7 @@ void checkAlertStatus()
   client.setInsecure();
   HTTPClient http;
   http.setTimeout(1500);
-  http.begin(client, baseUrl + "/alert-status");
+  http.begin(client, baseUrl + "/alert-status?t=" + String(millis()));
   http.addHeader("x-device-key", deviceKey);
   int code = http.GET();
   if (code > 0)
@@ -459,7 +454,7 @@ void checkUnlockStatus()
   client.setInsecure();
   HTTPClient http;
   http.setTimeout(1500);
-  http.begin(client, baseUrl + "/unlock-status");
+  http.begin(client, baseUrl + "/unlock-status?t=" + String(millis()));
   http.addHeader("x-device-key", deviceKey);
   int code = http.GET();
   if (code > 0)

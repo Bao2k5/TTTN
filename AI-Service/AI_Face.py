@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 import cloudinary
 import cloudinary.uploader
 
-# -- V4 REFACOR: INSIGHTFACE INSTALLED INSTEAD OF FACENET --
+
 try:
     from insightface.app import FaceAnalysis
     INSIGHTFACE_AVAILABLE = True
@@ -28,7 +28,7 @@ except ImportError:
 import os
 import sys
 
-# Lấy đường dẫn file hiện tại để nạp đúng .env thư mục gốc
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(current_dir, "..", ".env")
 load_dotenv(dotenv_path=env_path)
@@ -45,10 +45,8 @@ UNLOCK_URL = CLOUD_BACKEND + "/api/security/trigger-unlock"
 RESET_ALARM_URL = CLOUD_BACKEND + "/api/security/reset-alarm"
 HEADER_AUTH = {"x-device-key": "IoT_Secure_Vault_2024"}
 
-# Camera CCTV: webcam laptop (thay thế camera trên nóc CCTV)
 CAMERA_SOURCE = "webcam"
-CAMERA_URL = 0  # Webcam laptop - index 0
-# Nếu có nhiều webcam, thử index 1, 2...
+CAMERA_URL = 0
 print("[CAM] CCTV: Webcam Laptop (index 0)")
 
 
@@ -62,9 +60,9 @@ class FaceRegistrationWindow:
         self.detector = detector
         self.callback = callback
         if CAMERA_SOURCE == "esp32cam":
-            self.cap = None  # Sẽ fetch ảnh qua HTTP /capture
+            self.cap = None
         else:
-            # Thử mở camera với DirectShow backend trước
+
             self.cap = cv2.VideoCapture(CAMERA_URL, cv2.CAP_DSHOW)
             if not self.cap.isOpened():
                 self.cap = cv2.VideoCapture(CAMERA_URL, cv2.CAP_MSMF)
@@ -77,7 +75,6 @@ class FaceRegistrationWindow:
         self.frame_queue = queue.Queue(maxsize=1)
         
         self.setup_ui()
-        # Chay Camera va AI tren Thread rieng de chong LAG UI
         threading.Thread(target=self.camera_worker, daemon=True).start()
         self.update_ui_loop()
 
@@ -97,10 +94,10 @@ class FaceRegistrationWindow:
             frame = cv2.flip(frame, 1)
             h, w, _ = frame.shape
             
-            # Drawing Oval
+
             cv2.ellipse(frame, (w//2, h//2), (120, 160), 0, 0, 360, (0, 255, 0), 2)
             
-            # Thay the InsightFace bang thuat toan Cascade de UI muot ma tuyet doi (30fps)
+
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
             faces = face_cascade.detectMultiScale(gray, 1.3, 5)
@@ -109,16 +106,16 @@ class FaceRegistrationWindow:
                 x, y, fw, fh = faces[0]
                 x1, y1, x2, y2 = x, y, x+fw, y+fh
                 
-                # Ve khung mat ho tro nhin
+
                 cv2.rectangle(frame, (max(0, x1), max(0, y1)), (min(w, x2), min(h, y2)), (255, 255, 0), 2)
                 
                 cx = x + fw//2
                 cy = y + fh//2
-                if (w//2 - 120 < cx < w//2 + 120): # Inside oval
+                if (w//2 - 120 < cx < w//2 + 120):
                     now = time.time()
                     if now - self.last_capture_time > 0.5:
                         os.makedirs(f"dataset/train/{self.name}", exist_ok=True)
-                        # Luu TOAN BO khung hinh vao (Khong cat ngang) de InsightFace sau do chac chan bat duoc 100%
+
                         cv2.imwrite(f"dataset/train/{self.name}/{self.images_captured}.jpg", frame)
                         self.images_captured += 1
                         self.last_capture_time = now
@@ -138,7 +135,6 @@ class FaceRegistrationWindow:
             if self.images_captured >= self.total_needed:
                 parent = self.window.master
                 self.window.destroy()
-                # Chờ GUI dọn dẹp xóa hẳn Toplevel (sau 100ms) rồi mới gọi callback xử lý ảnh nặng
                 parent.after(100, lambda: self.callback(self.name))
             return
             
@@ -159,7 +155,7 @@ class FaceRecognitionApp:
         self.root.title("NCKH: Smart Jewelry Security (v4.0 - YOLO11 + Tracking)")
         self.root.geometry("1000x800")
         
-        # --- NEW PIPELINE ---
+
         print("[INFO] Loading YOLO11...")
         self.detector = YOLO('yolo11n.pt') 
         
@@ -179,15 +175,13 @@ class FaceRecognitionApp:
         self.is_running = False
         self.frame_queue = queue.Queue(maxsize=1)
         
-        # TRACKING CACHE: track_id -> name (To avoid running FaceNet every frame)
         self.tracked_identities = {}
-        self.authorized_users = set() # Danh sach nhan vien duoc mo khoa (Dynamic)
+        self.authorized_users = set()
         
-        # --- NGHIỆP VỤ SECURITY RECORDING (Pre-roll + Event + Post-roll) ---
         self.is_recording_event = False
         self.active_event_frames = []
         self.post_roll_count = 0
-        self.MAX_FRAMES = 150 # Tối đa quay 15s (150 frames) để upload nhanh
+        self.MAX_FRAMES = 150
         self.current_alert_name = "Stranger"
         self.trigger_image = None
         
@@ -196,7 +190,7 @@ class FaceRecognitionApp:
         self.alert_cooldown = 30 
         self.unlock_cooldown = 60 
         self.frame_buffer = [] 
-        self.current_frame = None # Frame hien tai dang duoc camera doc
+        self.current_frame = None 
         self.setup_ui()
         self.load_known_faces()
 
@@ -217,14 +211,14 @@ class FaceRecognitionApp:
             if len(X) > 0:
                 self.encoder = LabelEncoder()
                 y_encoded = self.encoder.fit_transform(y)
-                # InsightFace embeddings are highly clustered.
+
                 self.classifier = KNeighborsClassifier(n_neighbors=min(5, len(set(y))), metric='euclidean')
                 self.classifier.fit(X, y_encoded)
                 print(f"[INFO] Loaded {len(set(y))} users from DB.")
             else:
                 self.classifier = None
                 self.encoder = None
-                self.tracked_identities = {} # Clear current tracker
+                self.tracked_identities = {}
                 print(f"[INFO] No users found in DB. AI Reset.")
         except Exception as e:
             print(f"[ERROR] Failed to load known faces: {e}")
@@ -244,11 +238,10 @@ class FaceRecognitionApp:
     def process_and_upload_event(self, frames_to_upload, name, alert_img):
         now = time.time()
         
-        # --- BƯỚC 1: CẢNH BÁO TỨC THÌ (Fast-Path) ---
-        print(f"[ALERT] Phát hiện xâm nhập! Gửi cảnh báo tức thì lên Web/App...")
+        print(f"[ALERT] Phat hien xam nhap! Gui canh bao...")
         
         try:
-            # Chỉ nén và up 1 tấm ảnh duy nhất để tăng tốc độ phát còi (mất ~0.5s)
+
             _, img_encoded = cv2.imencode('.jpg', alert_img)
             img_bytes = img_encoded.tobytes()
             img_res = cloudinary.uploader.upload(img_bytes, folder="security_alerts")
@@ -272,16 +265,15 @@ class FaceRecognitionApp:
             print(f"[ERROR] Immediate alert failed: {e}")
             log_id = None
 
-        # --- BƯỚC 2: RENDER VIDEO VÀ CẬP NHẬT SAU (Slow-Path ở Background) ---
         def task():
-            if not log_id: return # Nếu log ban đầu gửi lỗi, không có ID để update
+            if not log_id: return
             
             try:
-                print(f"[INFO] Bắt đầu render video {len(frames_to_upload)} frames ở chế độ chạy ngầm...")
+                print(f"[INFO] Rendering {len(frames_to_upload)} frames...")
                 
-                # Tao video tu danh sach frames
+
                 video_filename = f"alert_{int(now)}.mp4"
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v') # mp4v cho MP4
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                 h, w, _ = frames_to_upload[0].shape
                 out = cv2.VideoWriter(video_filename, fourcc, 10.0, (w, h))
                 
@@ -293,19 +285,19 @@ class FaceRecognitionApp:
                     print(f"[ERROR] Video file is missing or too small.")
                     return
                 
-                print(f"[INFO] Uploading Video bằng chứng lên Cloudinary...")
+                print(f"[INFO] Uploading evidence video...")
                 vid_res = cloudinary.uploader.upload(video_filename, folder="security_alerts", resource_type="video")
                 vid_url = vid_res.get('secure_url')
                 vid_id = vid_res.get('public_id')
                 
-                # Force Cloudinary to transcode video to web-playable H.264 mp4 format dynamically
+
                 if vid_url: 
                     vid_url = vid_url.replace('/upload/', '/upload/f_mp4,vc_auto/')
                 
                 if os.path.exists(video_filename): os.remove(video_filename)
                 
                 if vid_url:
-                    # Gọi API PUT để Update log
+
                     put_url = f"{API_URL}/{log_id}"
                     put_payload = {
                         "videoUrl": vid_url,
@@ -313,7 +305,7 @@ class FaceRecognitionApp:
                     }
                     update_res = requests.put(put_url, json=put_payload, headers=HEADER_AUTH, timeout=10)
                     if update_res.status_code == 200:
-                        print(f"[SUCCESS] Đã đính kèm video vào cảnh báo {log_id}")
+                        print(f"[SUCCESS] Video attached to alert {log_id}")
                     
             except Exception as e:
                 print(f"[ERROR] Background video task failed: {e}")
@@ -329,15 +321,13 @@ class FaceRecognitionApp:
             self.last_unlock_time = now
             print(f"[ACCESS] Authorized User detected: {name}. Unlocking...")
             try:
-                # Gui lenh mo khoa len Backend
+
                 requests.post(UNLOCK_URL, json={"reason": f"FaceID recognized: {name}"}, headers=HEADER_AUTH, timeout=5)
-                # Sếp co the dung cac y tuong nhu Voice Assistant o day:
-                # print("Chào Chủ tịch, đang mở khóa...")
+
             except Exception as e:
                 print(f"[ERROR] Unlock failed: {e}")
 
     def video_worker(self):
-        # Thử mở camera với nhiều backend khác nhau
         cap = None
         for backend in [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]:
             print(f"[CAM] Trying camera index {CAMERA_URL} with backend {backend}...")
@@ -379,12 +369,11 @@ class FaceRecognitionApp:
             frame = cv2.flip(frame, 1)
             self.current_frame = frame.copy() 
             
-            # Update frame buffer (Luon luu khoang 50 frames cu ~ 5 giay)
             self.frame_buffer.append(frame.copy())
             if len(self.frame_buffer) > 50:
                 self.frame_buffer.pop(0)
 
-            # 1. PHÁT HIỆN & TRACKING NGƯỜI BẰNG YOLO11 + BYTETRACK
+
             results = self.detector.track(frame, classes=[0], persist=True, tracker="bytetrack.yaml", verbose=False)[0]
             
             is_stranger_in_fence = False
@@ -398,12 +387,10 @@ class FaceRecognitionApp:
                 for box, track_id in zip(boxes, track_ids):
                     x1, y1, x2, y2 = box
                     
-                    # 2. XÁC THỰC DANH TÍNH (Chi chay neu chua co trong cache)
                     if track_id not in self.tracked_identities:
-                        # Mac dinh la Stranger khi dang xu ly
                         self.tracked_identities[track_id] = "Stranger"
                         
-                        # Crop body de tim face (Chi chay neu co Classifier)
+
                         if self.classifier is not None:
                             body_crop = frame[max(0, y1):y2, max(0, x1):x2]
                             if body_crop.size > 0 and INSIGHTFACE_AVAILABLE:
@@ -417,50 +404,45 @@ class FaceRecognitionApp:
                                     dist = distances[0][0]
                                     label_idx = self.classifier.predict([emb])[0]
                                     pred_name = self.encoder.inverse_transform([label_idx])[0]
-                                    print(f"[CCTV-DEBUG] dist={dist:.3f} → pred={pred_name} ({'MATCH' if dist < 1.3 else 'STRANGER'})")
-                                    if dist < 1.3: # Tăng lên 1.3 (từ 1.2) vì DB có cả embedding webcam + ESP32-CAM sim
+                                    print(f"[CCTV-DEBUG] dist={dist:.3f} → pred={pred_name} ({'MATCH' if dist < 1.55 else 'STRANGER'})")
+                                    if dist < 1.55: 
                                         self.tracked_identities[track_id] = pred_name
                     
                     name = self.tracked_identities.get(track_id, "Stranger")
                     
-                    # 3. KIEM TRA VUNG AN NINH
+
                     in_fence = not (x2 < fence_box[0] or x1 > fence_box[2] or y2 < fence_box[1] or y1 > fence_box[3])
                     
                     if "Stranger" in name:
-                        color = (0, 0, 255) # Do
+                        color = (0, 0, 255)
                         if in_fence: is_stranger_in_fence = True
                     else:
-                        color = (0, 255, 0) # Xanh
+                        color = (0, 255, 0)
                         self.is_staff_present = True
-                        # Nhan vien trong vung fence -> khong canh bao
                         if in_fence: is_staff_in_fence = True
                         if name in self.authorized_users:
-                            pass  # Đã tắt auto-unlock qua CCTV - chỉ mở khi Admin bấm nút + ESP32-CAM xác thực
-                            # self.handle_face_unlock(name)  ← Tắt để tránh tự mở khóa
+                            pass
 
-                    # Draw Result
+
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                     cv2.putText(frame, f"ID:{track_id} {name}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
-            # 4. STATE MACHINE FOR RECORDING EVENT (Pre-roll + Action + Post-roll)
-            # Chi canh bao khi: Stranger trong fence VA KHONG co nhan vien nao trong fence
             should_alert = is_stranger_in_fence and not is_staff_in_fence
             if should_alert:
                 if not self.is_recording_event:
                     now = time.time()
-                    if now - self.last_alert_time >= self.alert_cooldown: # Chỉ bắt đầu khi hết cooldown
-                        print("[EVENT] Cảnh báo xâm nhập! Bắt đầu trích xuất camera...")
+                    if now - self.last_alert_time >= self.alert_cooldown:
+                        print("[EVENT] Intrusion detected! Recording...")
                         self.is_recording_event = True
-                        self.active_event_frames = list(self.frame_buffer) # 50 pre-roll frames
+                        self.active_event_frames = list(self.frame_buffer)
                         self.post_roll_count = 0
                         self.current_alert_name = "Stranger"
-                        # Luôn nhớ cái frame ngay lúc vừa bị phát hiện làm ảnh báo động
+
                         self.trigger_image = frame.copy()
                 else:
                     self.active_event_frames.append(frame.copy())
-                    self.post_roll_count = 0 # Trạng thái Action liên tục reset post-roll
+                    self.post_roll_count = 0
                     if len(self.active_event_frames) >= self.MAX_FRAMES:
-                        # Max cap reached
                         self.process_and_upload_event(self.active_event_frames, self.current_alert_name, self.trigger_image)
                         self.is_recording_event = False
                         self.last_alert_time = time.time()
@@ -469,15 +451,13 @@ class FaceRecognitionApp:
                 if self.is_recording_event:
                     self.active_event_frames.append(frame.copy())
                     self.post_roll_count += 1
-                    # Kết thúc khi đủ 5s (50 frames) Post-roll HOẶC đạt giới hạn MAX_FRAMES
                     if self.post_roll_count >= 50 or len(self.active_event_frames) >= self.MAX_FRAMES:
                         self.process_and_upload_event(self.active_event_frames, self.current_alert_name, self.trigger_image)
                         self.is_recording_event = False
                         self.last_alert_time = time.time()
                         self.active_event_frames = []
 
-            # 5. DRAW FENCE
-            # Fence do khi co canh bao (stranger + khong co nhan vien), xanh khi an toan
+
             color_fence = (0, 0, 255) if should_alert else (0, 255, 0)
             cv2.rectangle(frame, (fence_box[0], fence_box[1]), (fence_box[2], fence_box[3]), color_fence, 2)
             status_text = "JEWELRY ZONE"
@@ -503,7 +483,7 @@ class FaceRecognitionApp:
                     self.video_label.configure(image=imgtk)
             except Exception as e:
                 print(f"[UI ERROR] {e}")
-            self.root.after(20, self.update_ui_loop) # Tang len 20ms cho nhe CPU
+            self.root.after(20, self.update_ui_loop)
 
     def start_system(self):
         if not self.is_running:
@@ -513,7 +493,6 @@ class FaceRecognitionApp:
 
     def stop_system(self): 
         self.is_running = False
-        # Chuyển canvas về màn đen khi tắt camera để tránh lưu lại ảnh cũ
         black_img = Image.new('RGB', (800, 600), color='black')
         self.root.after(0, self._set_black_screen, black_img)
 
@@ -532,20 +511,18 @@ class FaceRecognitionApp:
         return []
 
     def register_user(self):
-        self.stop_system() # Dung he thong chinh de nhuong Camera Port cho dang ky!
-        # Dùng tk.after thay vì time.sleep(0.5) để không làm đơ cứng toàn bộ UI
+        self.stop_system()
         self.root.after(500, self._show_register_dialog)
 
     def _show_register_dialog(self):
         name = simpledialog.askstring("Register", "Nhập tên nhân viên mới:")
         if not name: 
-            self.start_system() # Mo lai he thong neu bam Huy
+            self.start_system()
             return
         
         is_auth = messagebox.askyesno("Quyền hạn", f"Cho phép '{name}' được tự động mở khóa tủ bằng khuôn mặt?")
             
         def process_embeddings(staff_name, is_authorized):
-            # Tạo màn hình Loading Progress Bar phụ trợ về mặt UI
             loading_win = tk.Toplevel(self.root)
             loading_win.title("AI Đang Xử Lý...")
             loading_win.geometry("350x150")
@@ -556,23 +533,17 @@ class FaceRecognitionApp:
             percent_lbl.pack()
 
             def worker():
-                # ── Hàm giả lập chất lượng ảnh ESP32-CAM OV2640 ──────────────────
                 def degrade_to_esp32cam(img):
                     h, w = img.shape[:2]
-                    # 1. Resize xuống QVGA (giống ESP32-CAM khi không có PSRAM)
                     small = cv2.resize(img, (320, 240), interpolation=cv2.INTER_AREA)
-                    # 2. Nén JPEG chất lượng thấp (giống nén onboard ESP32-CAM q=10)
                     _, encoded = cv2.imencode('.jpg', small, [cv2.IMWRITE_JPEG_QUALITY, 10])
                     degraded = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
-                    # 3. Resize lại về kích thước gốc để InsightFace xử lý được
                     degraded = cv2.resize(degraded, (w, h), interpolation=cv2.INTER_CUBIC)
-                    # 4. Shift màu lạnh hơn (ESP32-CAM OV2640 thiên về cool white)
                     degraded = degraded.astype(np.float32)
-                    degraded[:,:,0] *= 1.05  # Blue tăng nhẹ
-                    degraded[:,:,2] *= 0.92  # Red giảm nhẹ
+                    degraded[:,:,0] *= 1.05
+                    degraded[:,:,2] *= 0.92
                     degraded = np.clip(degraded, 0, 255).astype(np.uint8)
                     return degraded
-                # ─────────────────────────────────────────────────────────────────
 
                 embs = []
                 folder = f"dataset/train/{staff_name}"
@@ -585,14 +556,14 @@ class FaceRecognitionApp:
                 for idx, img_name in enumerate(files):
                     img = cv2.imread(os.path.join(folder, img_name))
                     if img is not None:
-                        # Embedding gốc từ webcam
+
                         faces = self.face_app.get(img)
                         if len(faces) > 0:
                             emb = faces[0].embedding
                             emb = emb / np.linalg.norm(emb)
                             embs.append(emb)
 
-                            # Embedding augmented (giả lập ESP32-CAM) → giải quyết domain mismatch
+
                             degraded = degrade_to_esp32cam(img)
                             faces_deg = self.face_app.get(degraded)
                             if len(faces_deg) > 0:
@@ -600,7 +571,7 @@ class FaceRecognitionApp:
                                 emb_deg = emb_deg / np.linalg.norm(emb_deg)
                                 embs.append(emb_deg)
                     
-                    # Update tick qua Toplevel Progress Bar
+
                     def update_ui(current=idx+1, total=total_files):
                         if total > 0:
                             progress_bar['value'] = (current / total) * 100
@@ -608,20 +579,18 @@ class FaceRecognitionApp:
                     self.root.after(0, update_ui)
                 
                 if embs:
-                    # --- BƯỚC KIỂM TRA CHỐNG TRÙNG LẶP (ANTI DEDUPLICATION) ---
                     is_duplicated = False
                     duplicated_name = ""
                     if self.classifier is not None and len(embs) > 0:
-                        # Tính trung bình đặc trưng khuôn mặt từ 20 ảnh vừa chụp cho chuẩn
                         avg_emb = np.mean(embs, axis=0) 
                         avg_emb = avg_emb / np.linalg.norm(avg_emb)
                         distances, _ = self.classifier.kneighbors([avg_emb])
                         
-                        # Ngưỡng giống nhau. Càng nhỏ càng giống.
+
                         if distances[0][0] < 1.4: 
                             label_idx = self.classifier.predict([avg_emb])[0]
                             exist_name = self.encoder.inverse_transform([label_idx])[0]
-                            # Nếu tên không khớp nhưng mặt giống một người khác -> Có người làm giả / Đăng ký 2 lần
+
                             if exist_name.lower() != staff_name.lower():
                                 is_duplicated = True
                                 duplicated_name = exist_name
@@ -648,18 +617,16 @@ class FaceRecognitionApp:
                     self.root.after(0, lambda: loading_win.destroy())
                     self.root.after(0, lambda: messagebox.showerror("Lỗi", "Không tìm thấy khuôn mặt! Vui lòng thử lại."))
                     
-                # Bật lại hệ thống Camera giám sát sau khi đã tính toán xong
+
                 if not self.is_running:
                     self.root.after(0, self.start_system)
             
-            # Chay thread Thực sự "Tách luồng" song song cho thuật toán AI bên dưới
             threading.Thread(target=worker, daemon=True).start()
                 
-        # USE cv2.CascadeClassifier instead of heavy InsightFace for pure GUI UI flow
+
         FaceRegistrationWindow(self.root, name, self.detector, lambda n: process_embeddings(n, is_auth))
 
     def delete_staff(self):
-        """Hiển thị danh sách nhân viên và cho phép xóa"""
         try:
             docs = list(self.collection.find({}, {'name': 1}))
             staff_list = [doc['name'] for doc in docs if 'name' in doc]
@@ -724,18 +691,13 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = FaceRecognitionApp(root)
 
-    # ============================================================
-    # FACE-VERIFY HTTP SERVER (Port 5001)
-    # ESP32-CAM sẽ POST ảnh JPEG đến: http://IP_LAPTOP:5001/face-verify
-    # Server nhận diện và trả về: { "matched": true/false, "name": "..." }
-    # ============================================================
+
     try:
         from flask import Flask, request, jsonify
         flask_app = Flask(__name__)
 
         @flask_app.route('/face-verify', methods=['POST'])
         def face_verify():
-            """Nhận ảnh JPEG từ ESP32-CAM, nhận diện khuôn mặt, trả kết quả."""
             try:
                 img_data = request.get_data()
                 if not img_data:
@@ -747,25 +709,27 @@ if __name__ == "__main__":
                 if frame is None:
                     return jsonify({"matched": False, "name": "Unknown", "error": "Cannot decode image"}), 400
 
-                print(f"[FACE-VERIFY] Nhận ảnh từ ESP32-CAM: {frame.shape}")
+                print(f"[FACE-VERIFY] Received: {frame.shape}")
 
-                # Kiểm tra classifier đã sẵn sàng chưa (phải đăng ký nhân viên trước)
                 if app.classifier is None or not INSIGHTFACE_AVAILABLE:
                     return jsonify({"matched": False, "name": "Chưa đăng ký nhân viên nào"}), 200
 
-                # Tiền xử lý ảnh từ ESP32-CAM (nâng chất lượng nhận diện)
-                # 1. Đảm bảo ảnh đủ lớn (InsightFace cần tối thiểu 112x112 để extract emb)
+
                 h_img, w_img = frame.shape[:2]
                 if h_img < 480 or w_img < 640:
                     scale = max(640/w_img, 480/h_img)
                     frame = cv2.resize(frame, (int(w_img*scale), int(h_img*scale)), interpolation=cv2.INTER_CUBIC)
-                    print(f"[FACE-VERIFY] Ảnh nhỏ, đã upscale: {frame.shape}")
+                    print(f"[FACE-VERIFY] Image resized: {frame.shape}")
 
-                # Đã loại bỏ CLAHE vì nó làm hỏng mặt và sinh ra nhiễu hạt lớn khi ảnh vốn đã sáng từ đèn Flash.
-                # Nhận diện khuôn mặt bằng InsightFace
+                cv2.imwrite("esp32_debug.jpg", frame)
+
+                frame = cv2.convertScaleAbs(frame, alpha=1.2, beta=20) 
+
+                cv2.imwrite("esp32_debug_ai_enhanced.jpg", frame)
+
                 faces = app.face_app.get(frame)
                 if len(faces) == 0:
-                    print("[FACE-VERIFY] Không phát hiện khuôn mặt trong ảnh!")
+                    print("[FACE-VERIFY] Khong phat hien khuon mat trong anh!")
                     return jsonify({"matched": False, "name": "No face detected"}), 200
 
                 face = faces[0]
@@ -775,26 +739,25 @@ if __name__ == "__main__":
                 distances, _ = app.classifier.kneighbors([emb])
                 dist = distances[0][0]
 
-                if dist < 1.4:  # Nới lỏng hơn 1.25: bù cho domain mismatch webcam training vs ESP32-CAM (ảnh ESP32 có màu sắc/chất lượng khác webcam)
+                if dist < 1.65: 
                     label_idx = app.classifier.predict([emb])[0]
                     name = app.encoder.inverse_transform([label_idx])[0]
                     is_authorized = name in app.authorized_users
 
-                    print(f"[FACE-VERIFY] ✅ Nhận diện: {name} (dist={dist:.3f}, authorized={is_authorized})")
+                    print(f"[FACE-VERIFY] Nhan dien thanh cong: {name} (dist={dist:.3f}, authorized={is_authorized})")
 
                     if is_authorized:
-                        # Tự động gọi trigger-unlock lên cloud BE
                         def do_unlock():
                             try:
                                 requests.post(UNLOCK_URL, json={"reason": f"FaceID ESP32CAM: {name}"}, headers=HEADER_AUTH, timeout=5)
-                                print(f"[FACE-VERIFY] 🔓 Lệnh mở khóa đã gửi cho: {name}")
+                                print(f"[FACE-VERIFY] Da gui lenh mo khoa cho: {name}")
                             except Exception as e:
-                                print(f"[FACE-VERIFY] Lỗi gửi trigger-unlock: {e}")
+                                print(f"[FACE-VERIFY] Loi gui trigger-unlock: {e}")
                         threading.Thread(target=do_unlock, daemon=True).start()
 
                     return jsonify({"matched": is_authorized, "name": name, "distance": round(dist, 3)}), 200
                 else:
-                    print(f"[FACE-VERIFY] ❌ Không nhận diện được (dist={dist:.3f} > ngưỡng 1.3)")
+                    print(f"[FACE-VERIFY] Khong nhan dien duoc (dist={dist:.3f} > 1.65)")
                     return jsonify({"matched": False, "name": "Stranger", "distance": round(dist, 3)}), 200
 
             except Exception as e:
@@ -808,7 +771,7 @@ if __name__ == "__main__":
         def run_flask():
             import logging
             log = logging.getLogger('werkzeug')
-            log.setLevel(logging.ERROR)  # Ẩn log verbose của Flask
+            log.setLevel(logging.ERROR)
             flask_app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)
 
         flask_thread = threading.Thread(target=run_flask, daemon=True)
