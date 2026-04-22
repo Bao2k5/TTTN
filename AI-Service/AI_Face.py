@@ -34,16 +34,17 @@ env_path = os.path.join(current_dir, "..", ".env")
 load_dotenv(dotenv_path=env_path)
 
 cloudinary.config( 
-  cloud_name = "drqowqzr6", 
-  api_key = "197156983396473", 
-  api_secret = "v9wfVhbBoZAKVXxYJgRhKtqptWE"
+  cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME"), 
+  api_key = os.getenv("CLOUDINARY_API_KEY"), 
+  api_secret = os.getenv("CLOUDINARY_API_SECRET")
 )
 
 CLOUD_BACKEND = "https://hm-vault.zapto.org"
 API_URL = CLOUD_BACKEND + "/api/security/log"
 UNLOCK_URL = CLOUD_BACKEND + "/api/security/trigger-unlock"
 RESET_ALARM_URL = CLOUD_BACKEND + "/api/security/reset-alarm"
-HEADER_AUTH = {"x-device-key": "IoT_Secure_Vault_2024"}
+DEVICE_KEY = os.getenv("DEVICE_SECRET_KEY")
+HEADER_AUTH = {"x-device-key": DEVICE_KEY}
 
 CAMERA_SOURCE = "webcam"
 CAMERA_URL = 0
@@ -361,8 +362,22 @@ class FaceRecognitionApp:
             if not ret:
                 fail_count += 1
                 if fail_count > 30:
-                    print("[ERROR] Camera read failed 30 times. Stopping.")
-                    break
+                    print("[ERROR] Camera mất kết nối 30 lần. Đang thử kết nối lại...")
+                    cap.release()
+                    time.sleep(1)
+                    
+                    cap = cv2.VideoCapture(CAMERA_URL, cv2.CAP_DSHOW)
+                    if not cap.isOpened():
+                        cap = cv2.VideoCapture(CAMERA_URL)
+                        
+                    if not cap.isOpened():
+                        print("[ERROR] Không thể tự động khôi phục Camera! Dừng hệ thống.")
+                        self.is_running = False
+                        break
+                    
+                    fail_count = 0
+                    print("[CAM] Khôi phục Camera thành công!")
+                    continue
                 time.sleep(0.1)
                 continue
             fail_count = 0
@@ -517,6 +532,12 @@ class FaceRecognitionApp:
     def _show_register_dialog(self):
         name = simpledialog.askstring("Register", "Nhập tên nhân viên mới:")
         if not name: 
+            self.start_system()
+            return
+            
+        import re
+        if len(name) > 50 or not bool(re.match(r'^[a-zA-Z0-9\s_A-Za-zÀ-ỹà-ỹ]+$', name)):
+            messagebox.showerror("Lỗi An Ninh", "Tên không hợp lệ! Vui lòng không nhập ký tự đặc biệt.")
             self.start_system()
             return
         
@@ -699,6 +720,11 @@ if __name__ == "__main__":
         @flask_app.route('/face-verify', methods=['POST'])
         def face_verify():
             try:
+                client_key = request.headers.get('x-device-key')
+                if client_key != DEVICE_KEY:
+                    print(f"[FACE-VERIFY] Cảnh báo: Truy cập trái phép từ {request.remote_addr} (Sai x-device-key)!")
+                    return jsonify({"matched": False, "name": "Unauthorized", "error": "Invalid Device Key"}), 401
+
                 img_data = request.get_data()
                 if not img_data:
                     return jsonify({"matched": False, "name": "No image", "error": "Empty body"}), 400
