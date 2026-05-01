@@ -16,7 +16,7 @@ exports.verifyToken = async (req, res, next) => {
   }
 };
 
-// Optional auth - không bắt buộc login, nhưng nếu có token thì parse
+// Optional auth: parse token if present, but do not require login
 exports.optionalAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization || req.headers.Authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -41,15 +41,14 @@ exports.isAdmin = async (req, res, next) => {
   return res.status(403).json({ msg: "Require admin role" });
 };
 
-// Middleware verify Device Key dành riêng cho IoT (ESP32)
+// IoT Device Key authentication
 exports.verifyDeviceKey = (req, res, next) => {
   const deviceKey = req.headers["x-device-key"];
-  const SECURE_KEY = process.env.DEVICE_KEY || "IoT_Secure_Vault_2024";
+  const SECURE_KEY = process.env.DEVICE_KEY;
 
   if (deviceKey && deviceKey === SECURE_KEY) {
     return next();
   }
   
-  // Nếu không có Device Key, vẫn cho phép kiểm tra verifyToken nếu có
   return exports.verifyToken(req, res, next);
 };

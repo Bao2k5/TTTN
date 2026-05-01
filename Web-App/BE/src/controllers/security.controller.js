@@ -1,10 +1,8 @@
 const { SecurityLog, SystemState } = require('../models/security.model');
 const TempLog = require('../models/tempLog.model');
 
-// UNLOCK STATE KEY - dùng singleton pattern trong MongoDB
 const UNLOCK_STATE_KEY = 'door-unlock-state';
 
-// @route   PUT /api/security/log/:id
 exports.updateLog = async (req, res) => {
     try {
         const { id } = req.params;
@@ -23,13 +21,12 @@ exports.updateLog = async (req, res) => {
 
         res.json({ success: true, data: updatedLog });
     } catch (error) {
-        console.error('Lỗi khi cập nhật Security Log:', error);
+        console.error('Error updating security log:', error);
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 };
 
-// @desc    Nhận log từ Python Edge AI và phát cảnh báo
-// @route   POST /api/security/log
+// Handle log from Python Edge AI and emit alerts
 exports.createLog = async (req, res) => {
     try {
         const { type, title, message, detectedName, imageUrl, videoUrl, videoPublicId } = req.body;
@@ -43,12 +40,11 @@ exports.createLog = async (req, res) => {
             imageUrl,
             videoUrl,
             videoPublicId,
-            status: 'active' // Mặc định là active
+            status: 'active'
         });
 
         await newLog.save();
 
-        // 🚀 Real-time Notify
         if (io) {
             io.emit('new-alert', newLog);
             console.log(`📡 Emitted 'new-alert': ${title}`);
@@ -56,13 +52,11 @@ exports.createLog = async (req, res) => {
 
         res.status(201).json({ success: true, data: newLog });
     } catch (error) {
-        console.error('Lỗi khi lưu Security Log:', error);
+        console.error('Error creating security log:', error);
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 };
 
-// @desc    Lấy lịch sử cảnh báo
-// @route   GET /api/security/logs
 exports.getLogs = async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 20;
@@ -72,16 +66,14 @@ exports.getLogs = async (req, res) => {
 
         res.json({ success: true, count: logs.length, data: logs });
     } catch (error) {
-        console.error('Lỗi khi lấy Security Logs:', error);
+        console.error('Error getting security logs:', error);
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 };
 
-// @desc    API cho ESP32 gọi để kiểm tra có báo động không
-// @route   GET /api/security/alert-status
+// Check alert status for ESP32
 exports.checkAlertStatus = async (req, res) => {
     try {
-        // Tìm log WARNING/DANGER chưa được xử lý (active) trong 5 phút gần nhất
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
         const activeAlert = await SecurityLog.findOne({
@@ -100,25 +92,22 @@ exports.checkAlertStatus = async (req, res) => {
 
         res.json({ shouldAlert: false, message: "SAFE" });
     } catch (error) {
-        console.error('Lỗi check status:', error);
+        console.error('Error checking alert status:', error);
         res.status(500).json({ alert: false, error: 'Server Error' });
     }
 };
 
-// @desc    API cho nhân viên tắt còi báo động (Cần mã PIN xác thực)
-// @route   POST /api/security/reset-alarm
+// Reset alarm with PIN verification
 exports.resetAlarm = async (req, res) => {
     try {
         const { pin } = req.body;
         const io = req.app.get('socketio');
 
-        // Basic PIN check (Default: 1234 or from ENV)
         const sysPin = process.env.ALARM_PIN || '1234';
         if (pin !== sysPin) {
-            return res.status(401).json({ success: false, message: 'Sai mã PIN xác thực!' });
+            return res.status(401).json({ success: false, message: 'Invalid PIN!' });
         }
 
-        // Cập nhật tất cả log Active -> Resolved
         const result = await SecurityLog.updateMany(
             { status: 'active', type: { $in: ['WARNING', 'DANGER'] } },
             { $set: { status: 'resolved' } }
@@ -133,17 +122,16 @@ exports.resetAlarm = async (req, res) => {
 
         res.json({
             success: true,
-            message: "Alarm reset successfully (Logs marked as resolved)",
+            message: "Alarm reset successfully",
             modifiedCount: result.modifiedCount
         });
     } catch (error) {
-        console.error('Lỗi reset alarm:', error);
+        console.error('Error resetting alarm:', error);
         res.status(500).json({ success: false, error: 'Server Error' });
     }
 };
 
-// @desc    ESP32 poll de kiem tra co mo khoa khong
-// @route   GET /api/security/unlock-status
+// Check unlock status for ESP32
 exports.checkUnlockStatus = async (req, res) => {
     try {
         const state = await SystemState.findOne({ key: UNLOCK_STATE_KEY });
@@ -151,7 +139,6 @@ exports.checkUnlockStatus = async (req, res) => {
         if (state && state.shouldUnlock && state.unlockAt) {
             const elapsed = Date.now() - new Date(state.unlockAt).getTime();
             if (elapsed > 10000) {
-                // Tự động hết hạn sau 10 giây → reset trong DB
                 await SystemState.findOneAndUpdate(
                     { key: UNLOCK_STATE_KEY },
                     { shouldUnlock: false, unlockAt: null }
@@ -163,25 +150,23 @@ exports.checkUnlockStatus = async (req, res) => {
 
         res.json({ shouldUnlock: false });
     } catch (error) {
-        console.error('Lỗi check unlock:', error);
+        console.error('Error checking unlock status:', error);
         res.json({ shouldUnlock: false });
     }
 };
 
-// @desc    AI/Web goi de mo khoa tu xa
-// @route   POST /api/security/trigger-unlock
+// Trigger remote unlock
 exports.triggerUnlock = async (req, res) => {
     try {
         const io = req.app.get('socketio');
 
-        // Lưu trạng thái mở khoá vào MongoDB (upsert = tạo nếu chưa có)
         await SystemState.findOneAndUpdate(
             { key: UNLOCK_STATE_KEY },
             { shouldUnlock: true, unlockAt: new Date() },
             { upsert: true, new: true }
         );
 
-        // Tự động khoá lại sau 10 giây
+        // Auto-lock after 10 seconds
         setTimeout(async () => {
             try {
                 await SystemState.findOneAndUpdate(
@@ -189,22 +174,19 @@ exports.triggerUnlock = async (req, res) => {
                     { shouldUnlock: false, unlockAt: null }
                 );
                 if (io) io.emit('door-locked', { timestamp: new Date() });
-            } catch (err) {
-                console.error('Lỗi auto-lock:', err);
-            }
+            } catch (err) { /* silent */ }
         }, 10000);
 
         if (io) io.emit('door-unlocked', { timestamp: new Date() });
 
         res.json({ success: true, message: 'Unlock triggered - auto lock in 10s' });
     } catch (error) {
-        console.error('Lỗi trigger unlock:', error);
+        console.error('Error triggering unlock:', error);
         res.status(500).json({ success: false, error: 'Server Error' });
     }
 };
 
-// @desc    Lưu log nhiệt độ từ ESP32
-// @route   POST /api/security/temp-log
+// Log temperature and humidity from ESP32
 exports.logTemperature = async (req, res) => {
     try {
         const { temp, humi } = req.body;
@@ -219,35 +201,31 @@ exports.logTemperature = async (req, res) => {
 
         res.status(201).json({ success: true, data: newLog });
     } catch (error) {
-        console.error('Lỗi lưu Temp Log:', error);
+        console.error('Error logging temperature:', error);
         res.status(500).json({ success: false, error: 'Server Error' });
     }
 };
 
-// @desc    Lấy lịch sử nhiệt độ (để vẽ biểu đồ)
-// @route   GET /api/security/temp-history
 exports.getTempHistory = async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 50;
         const logs = await TempLog.find().sort({ timestamp: -1 }).limit(limit);
         res.json({ success: true, data: logs });
     } catch (error) {
-        console.error('Lỗi lấy Temp History:', error);
+        console.error('Error getting temp history:', error);
         res.status(500).json({ success: false, error: 'Server Error' });
     }
 };
-// @desc    Admin kích hoạt yêu cầu quét khuôn mặt
-// @route   POST /api/security/face-scan-trigger
+
+// Trigger face scan from Admin
 exports.triggerFaceScan = async (req, res) => {
     try {
-        // Lưu trạng thái "cần quét mặt" vào MongoDB (timeout 30s)
         await SystemState.findOneAndUpdate(
             { key: 'face-scan-state' },
             { shouldScan: true, scanAt: new Date() },
             { upsert: true, new: true }
         );
 
-        // Tự động hủy lệnh sau 30 giây nếu ESP32-CAM không nhận
         setTimeout(async () => {
             try {
                 await SystemState.findOneAndUpdate(
@@ -257,15 +235,14 @@ exports.triggerFaceScan = async (req, res) => {
             } catch (err) { /* ignore */ }
         }, 30000);
 
-        res.json({ success: true, message: 'Face scan triggered. ESP32-CAM will scan in next cycle.' });
+        res.json({ success: true, message: 'Face scan triggered' });
     } catch (error) {
-        console.error('Lỗi trigger face scan:', error);
+        console.error('Error triggering face scan:', error);
         res.status(500).json({ success: false, error: 'Server Error' });
     }
 };
 
-// @desc    ESP32-CAM poll để kiểm tra có cần quét mặt không
-// @route   GET /api/security/face-scan-status
+// Check face scan status for ESP32-CAM
 exports.checkFaceScanStatus = async (req, res) => {
     try {
         const state = await SystemState.findOne({ key: 'face-scan-state' });
@@ -273,14 +250,12 @@ exports.checkFaceScanStatus = async (req, res) => {
         if (state && state.shouldScan && state.scanAt) {
             const elapsed = Date.now() - new Date(state.scanAt).getTime();
             if (elapsed > 30000) {
-                // Hết hạn 30 giây
                 await SystemState.findOneAndUpdate(
                     { key: 'face-scan-state' },
                     { shouldScan: false, scanAt: null }
                 );
                 return res.json({ shouldScan: false });
             }
-            // Reset ngay sau khi ESP32-CAM nhận lệnh (one-shot)
             await SystemState.findOneAndUpdate(
                 { key: 'face-scan-state' },
                 { shouldScan: false, scanAt: null }
@@ -290,7 +265,7 @@ exports.checkFaceScanStatus = async (req, res) => {
 
         res.json({ shouldScan: false });
     } catch (error) {
-        console.error('Lỗi check face scan:', error);
+        console.error('Error checking face scan status:', error);
         res.json({ shouldScan: false });
     }
 };

@@ -15,7 +15,7 @@ _Theo Phiếu Đăng Ký Đề Tài Thực Tập Tốt Nghiệp - HK2 2025-2026 
 
 ### Mục tiêu đạt được (5 Goals)
 
-1. **Nghiên cứu và triển khai mô hình Hybrid Cloud - Edge AI**: Xây dựng hệ thống phân tán với AI xử lý tại biên (Laptop/Gateway) để đảm bảo cảnh báo thời gian thực và Web Server trên Cloud (Render/MongoDB) để quản lý tập trung.
+1. **Nghiên cứu và triển khai mô hình Hybrid Cloud - Edge AI**: Xây dựng hệ thống phân tán với AI xử lý tại biên (Laptop/Gateway) để đảm bảo cảnh báo thời gian thực và Web Server trên Cloud (AWS EC2/MongoDB) để quản lý tập trung.
 2. **Phát triển Module AI nhận diện thông minh**: Ứng dụng thuật toán Deep Learning (YOLOv8 & MediaPipe) và phát hiện hành vi xâm nhập vùng cấm với độ trễ thấp.
 3. **Xây dựng Dashboard quản lý trung tâm**: Thiết kế Website (NodeJS) hiển thị trực quan thông tin khách hàng, lịch sử cảnh báo an ninh và biểu đồ thống kê, hỗ trợ truy cập đa nền tảng (Mobile/PC).
 4. **Tích hợp hệ thống điều khiển IoT (ESP32)**: Lập trình vi điều khiển ESP32 kết nối WiFi, tự động nhận tín hiệu từ AI Server để kích hoạt các thiết bị cảnh báo vật lý (còi, đèn) ngay lập tức.
@@ -27,7 +27,7 @@ _Theo Phiếu Đăng Ký Đề Tài Thực Tập Tốt Nghiệp - HK2 2025-2026 
 - **Nâng cao (Điểm nhấn)**: Chuyển đổi từ Web truyền thống sang mô hình **Hybrid Cloud-Edge AI & IoT**.
   - **IoT**: Thiết bị giám sát tại cửa hàng thực tế (Camera, Cảm biến) dùng ESP32/Camera.
   - **AI**: Nhận diện khuôn mặt khách hàng VIP, gợi ý sản phẩm thông minh.
-  - **Cloud**: Render Backend xử lý logic, Cloudinary lưu trữ Video/Image, Web Socket Real-time.
+  - **Cloud**: AWS EC2 Backend xử lý logic, Cloudinary lưu trữ Video/Image, Web Socket Real-time.
 
 ### Phân tích Hệ thống (System Analysis Context)
 
@@ -63,7 +63,7 @@ _Mục đích: Điểm nhấn công nghệ (Edge AI + IoT) - Active Defense._
   - _Deploy_: Vercel.
 - **Backend**: Node.js, Express.js, Socket.IO.
   - _Database_: MongoDB Atlas.
-  - _Deploy_: Render.
+  - _Deploy_: AWS EC2.
 - **Auth**: JWT, Passport (Google/Facebook).
 - **Payment**: Stripe, SePay (BIDV VietQR động), COD.
 - **AI Chatbot**: Mô hình Kép (Google Gemini 1.5 Flash + Local Ollama Llama/Mistral).
@@ -83,15 +83,17 @@ _Mục đích: Điểm nhấn công nghệ (Edge AI + IoT) - Active Defense._
 - **Kết nối**: WiFi + Blynk IoT Platform.
 - **Cảm biến & Actuator**: PIR (chuyển động), DHT11 (nhiệt độ/độ ẩm), Servo (khóa cửa), Buzzer, LED x4, Relay, LCD I2C, Reed Switch (cảm biến cửa).
 - **Kiến trúc**: FreeRTOS multi-task (alarm task chạy song song).
-- **Giao tiếp**: Poll API từ Render Backend (`/api/security/alert-status`, `/api/security/unlock-status`).
+- **Giao tiếp**: Poll API từ AWS EC2 Backend (`/api/security/alert-status`, `/api/security/unlock-status`).
 
 ## 4. Trạng Thái Hiện Tại (Progress Log)
 
 - [x] **Core E-commerce**: Đăng ký/đăng nhập, Giỏ hàng, Thanh toán (Stripe/VNPay/SePay), Admin Dashboard (9 trang).
-- [x] **Deployment**: Frontend (Vercel) + Backend (Render) đã chạy online.
+- [x] **Deployment**: Frontend (Vercel) + Backend (AWS EC2) đã chạy online.
 - [x] **AI Integration**: Chatbot Gemini AI (Function Calling/Tools) + Edge AI Face Recognition (YOLO11 + ByteTrack + InsightFace + MediaPipe).
 - [x] **IoT Integration**: ESP32 firmware hoàn chỉnh với Blynk, PIR, DHT11, Servo, Buzzer, LCD, Relay, Reed Switch.
 - [x] **Security System**: Real-time alert (Socket.IO), auto-alarm, face-based unlock, admin dashboard giám sát.
+- [x] **Security Hardening**: XSS protection, HPP protection, Mongo sanitization đã được bật.
+- [x] **Testing**: Jest + Supertest setup hoàn chỉnh với health check test.
 - [x] **Tài liệu**: `PROJECT_STATUS.md` đã cập nhật.
 
 ## 5. Các Tài Nguyên Quan Trọng
@@ -99,7 +101,7 @@ _Mục đích: Điểm nhấn công nghệ (Edge AI + IoT) - Active Defense._
 - **Local URL**: `http://localhost:5173` (FE), `http://localhost:3000` (BE).
 - **Live Demo**: [hmjewelry.vercel.app](https://hmjewelry.vercel.app/) (Frontend).
 - **Tài khoản test**:
-  - Admin: `admin@example.com` / `admin123`
+  - Admin: `admin@example.com` / `Admin@123`
   - User: `user@hmjewelry.com` / `user123`
 
 ## 6. Lịch Sử Yêu Cầu Gần Nhất (Context Ngắn Hạn)
@@ -107,5 +109,7 @@ _Mục đích: Điểm nhấn công nghệ (Edge AI + IoT) - Active Defense._
 - Đã hoàn thiện AI Face Recognition V4 (InsightFace + YOLO11 Tracking, multi-pose registration).
 - Đã hoàn thiện IoT firmware ESP32 (340 dòng, tích hợp Blynk).
 - Đã tích hợp Chatbot AI (Gemini 1.5 Flash) với multi-turn history.
+- **[MỚI]** Đã bật XSS và HPP protection trong production.
+- **[MỚI]** Đã setup Jest testing framework với health check test.
 - Đang fix các vấn đề chưa hoàn chỉnh: chat history, unlock state persistence.
 - User sử dụng tiếng Việt.

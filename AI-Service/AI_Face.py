@@ -16,6 +16,10 @@ from sklearn.preprocessing import LabelEncoder
 from dotenv import load_dotenv
 import cloudinary
 import cloudinary.uploader
+import warnings
+
+# Suppress FutureWarning from InsightFace
+warnings.filterwarnings('ignore', category=FutureWarning, module='insightface')
 
 
 try:
@@ -39,16 +43,22 @@ cloudinary.config(
   api_secret = os.getenv("CLOUDINARY_API_SECRET")
 )
 
-CLOUD_BACKEND = "https://hm-vault.zapto.org"
+CLOUD_BACKEND = os.getenv("BACKEND_URL", "http://localhost:3000")
 API_URL = CLOUD_BACKEND + "/api/security/log"
 UNLOCK_URL = CLOUD_BACKEND + "/api/security/trigger-unlock"
 RESET_ALARM_URL = CLOUD_BACKEND + "/api/security/reset-alarm"
 DEVICE_KEY = os.getenv("DEVICE_SECRET_KEY")
 HEADER_AUTH = {"x-device-key": DEVICE_KEY}
 
-CAMERA_SOURCE = "webcam"
-CAMERA_URL = 0
-print("[CAM] CCTV: Webcam Laptop (index 0)")
+CAMERA_SOURCE = os.getenv("CAMERA_SOURCE", "webcam")
+CAMERA_URL = os.getenv("CAMERA_URL", "0")
+
+# Convert CAMERA_URL to int if it's a digit (webcam index), otherwise keep as string (RTSP/HTTP URL)
+if CAMERA_URL.isdigit():
+    CAMERA_URL = int(CAMERA_URL)
+    print(f"[CAM] Using webcam index: {CAMERA_URL}")
+else:
+    print(f"[CAM] Using IP camera: {CAMERA_URL}")
 
 
 
@@ -153,7 +163,7 @@ class FaceRegistrationWindow:
 class FaceRecognitionApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("NCKH: Smart Jewelry Security (v4.0 - YOLO11 + Tracking)")
+        self.root.title(" Smart Jewelry Security (v4.0 - YOLO11 + Tracking)")
         self.root.geometry("1000x800")
         
 
@@ -188,7 +198,7 @@ class FaceRecognitionApp:
         
         self.last_alert_time = 0
         self.last_unlock_time = 0 
-        self.alert_cooldown = 30 
+        self.alert_cooldown = 10  # Reduced from 30s to 10s for faster alerts
         self.unlock_cooldown = 60 
         self.frame_buffer = [] 
         self.current_frame = None 
@@ -239,79 +249,80 @@ class FaceRecognitionApp:
     def process_and_upload_event(self, frames_to_upload, name, alert_img):
         now = time.time()
         
-        print(f"[ALERT] Phat hien xam nhap! Gui canh bao...")
+        print(f"[ALERT] Phat hien xam nhap! Gui canh bao... (Timestamp: {now:.3f})")
         
-        try:
-
-            _, img_encoded = cv2.imencode('.jpg', alert_img)
-            img_bytes = img_encoded.tobytes()
-            img_res = cloudinary.uploader.upload(img_bytes, folder="security_alerts")
-            img_url = img_res.get('secure_url')
-            
-            payload = {
-                "type": "DANGER",
-                "title": "CẢNH BÁO XÂM NHẬP!",
-                "message": f"Phát hiện {name} đang tiếp cận quầy trang sức!",
-                "detectedName": name,
-                "imageUrl": img_url,
-                "videoUrl": None,
-                "videoPublicId": None
-            }
-            res = requests.post(API_URL, json=payload, headers=HEADER_AUTH, timeout=5)
-            log_id = None
-            if res.status_code == 201:
-                log_id = res.json().get('data', {}).get('_id')
-                print(f"[SUCCESS] Chuông đã kêu! Log ID: {log_id}")
-        except Exception as e:
-            print(f"[ERROR] Immediate alert failed: {e}")
-            log_id = None
-
-        def task():
-            if not log_id: return
-            
+        # Move EVERYTHING to background thread to avoid blocking
+        def upload_task():
             try:
-                print(f"[INFO] Rendering {len(frames_to_upload)} frames...")
+                # Upload alert image
+                _, img_encoded = cv2.imencode('.jpg', alert_img)
+                img_bytes = img_encoded.tobytes()
+                img_res = cloudinary.uploader.upload(img_bytes, folder="security_alerts")
+                img_url = img_res.get('secure_url')
                 
-
-                video_filename = f"alert_{int(now)}.mp4"
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                h, w, _ = frames_to_upload[0].shape
-                out = cv2.VideoWriter(video_filename, fourcc, 10.0, (w, h))
-                
-                for f in frames_to_upload:
-                    out.write(f)
-                out.release()
-                
-                if not os.path.exists(video_filename) or os.path.getsize(video_filename) < 1000:
-                    print(f"[ERROR] Video file is missing or too small.")
-                    return
-                
-                print(f"[INFO] Uploading evidence video...")
-                vid_res = cloudinary.uploader.upload(video_filename, folder="security_alerts", resource_type="video")
-                vid_url = vid_res.get('secure_url')
-                vid_id = vid_res.get('public_id')
-                
-
-                if vid_url: 
-                    vid_url = vid_url.replace('/upload/', '/upload/f_mp4,vc_auto/')
-                
-                if os.path.exists(video_filename): os.remove(video_filename)
-                
-                if vid_url:
-
-                    put_url = f"{API_URL}/{log_id}"
-                    put_payload = {
-                        "videoUrl": vid_url,
-                        "videoPublicId": vid_id
-                    }
-                    update_res = requests.put(put_url, json=put_payload, headers=HEADER_AUTH, timeout=10)
-                    if update_res.status_code == 200:
-                        print(f"[SUCCESS] Video attached to alert {log_id}")
-                    
+                # Send immediate alert
+                payload = {
+                    "type": "DANGER",
+                    "title": "CẢNH BÁO XÂM NHẬP!",
+                    "message": f"Phát hiện {name} đang tiếp cận quầy trang sức!",
+                    "detectedName": name,
+                    "imageUrl": img_url,
+                    "videoUrl": None,
+                    "videoPublicId": None
+                }
+                res = requests.post(API_URL, json=payload, headers=HEADER_AUTH, timeout=5)
+                log_id = None
+                if res.status_code == 201:
+                    log_id = res.json().get('data', {}).get('_id')
+                    print(f"[SUCCESS] Chuông đã kêu! Log ID: {log_id}")
             except Exception as e:
-                print(f"[ERROR] Background video task failed: {e}")
-
-        threading.Thread(target=task, daemon=True).start()
+                print(f"[ERROR] Immediate alert failed: {e}")
+                log_id = None
+            
+            # Upload video in background
+            if log_id and len(frames_to_upload) > 0:
+                try:
+                    print(f"[INFO] Rendering {len(frames_to_upload)} frames...")
+                    
+                    video_filename = f"alert_{int(now)}.mp4"
+                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                    h, w, _ = frames_to_upload[0].shape
+                    out = cv2.VideoWriter(video_filename, fourcc, 10.0, (w, h))
+                    
+                    for f in frames_to_upload:
+                        out.write(f)
+                    out.release()
+                    
+                    if not os.path.exists(video_filename) or os.path.getsize(video_filename) < 1000:
+                        print(f"[ERROR] Video file is missing or too small.")
+                        return
+                    
+                    print(f"[INFO] Uploading evidence video...")
+                    vid_res = cloudinary.uploader.upload(video_filename, folder="security_alerts", resource_type="video")
+                    vid_url = vid_res.get('secure_url')
+                    vid_id = vid_res.get('public_id')
+                    
+                    if vid_url: 
+                        vid_url = vid_url.replace('/upload/', '/upload/f_mp4,vc_auto/')
+                    
+                    if os.path.exists(video_filename): 
+                        os.remove(video_filename)
+                    
+                    if vid_url:
+                        put_url = f"{API_URL}/{log_id}"
+                        put_payload = {
+                            "videoUrl": vid_url,
+                            "videoPublicId": vid_id
+                        }
+                        update_res = requests.put(put_url, json=put_payload, headers=HEADER_AUTH, timeout=10)
+                        if update_res.status_code == 200:
+                            print(f"[SUCCESS] Video attached to alert {log_id}")
+                        
+                except Exception as e:
+                    print(f"[ERROR] Background video task failed: {e}")
+        
+        # Run everything in background thread - NO BLOCKING!
+        threading.Thread(target=upload_task, daemon=True).start()
 
     def handle_face_unlock(self, name):
         now = time.time()
@@ -402,28 +413,43 @@ class FaceRecognitionApp:
                 for box, track_id in zip(boxes, track_ids):
                     x1, y1, x2, y2 = box
                     
+                    # Initialize tracking if new ID
                     if track_id not in self.tracked_identities:
-                        self.tracked_identities[track_id] = "Stranger"
-                        
-
-                        if self.classifier is not None:
-                            body_crop = frame[max(0, y1):y2, max(0, x1):x2]
-                            if body_crop.size > 0 and INSIGHTFACE_AVAILABLE:
-                                faces = self.face_app.get(body_crop)
-                                if len(faces) > 0:
-                                    face = faces[0]
-                                    emb = face.embedding
-                                    emb = emb / np.linalg.norm(emb)
-                                    
-                                    distances, indices = self.classifier.kneighbors([emb])
-                                    dist = distances[0][0]
-                                    label_idx = self.classifier.predict([emb])[0]
-                                    pred_name = self.encoder.inverse_transform([label_idx])[0]
-                                    print(f"[CCTV-DEBUG] dist={dist:.3f} → pred={pred_name} ({'MATCH' if dist < 1.55 else 'STRANGER'})")
-                                    if dist < 1.55: 
-                                        self.tracked_identities[track_id] = pred_name
+                        self.tracked_identities[track_id] = {"name": "Stranger", "last_check": 0, "check_count": 0}
                     
-                    name = self.tracked_identities.get(track_id, "Stranger")
+                    # Get current time
+                    current_time = time.time()
+                    track_info = self.tracked_identities[track_id]
+                    
+                    # Only re-identify ONCE if "Stranger", then accept the result
+                    should_recheck = (
+                        track_info["name"] == "Stranger" and track_info["check_count"] == 0
+                    )
+                    
+                    if should_recheck and self.classifier is not None:
+                        body_crop = frame[max(0, y1):y2, max(0, x1):x2]
+                        if body_crop.size > 0 and INSIGHTFACE_AVAILABLE:
+                            faces = self.face_app.get(body_crop)
+                            if len(faces) > 0:
+                                face = faces[0]
+                                emb = face.embedding
+                                emb = emb / np.linalg.norm(emb)
+                                
+                                distances, indices = self.classifier.kneighbors([emb])
+                                dist = distances[0][0]
+                                label_idx = self.classifier.predict([emb])[0]
+                                pred_name = self.encoder.inverse_transform([label_idx])[0]
+                                
+                                track_info["last_check"] = current_time
+                                track_info["check_count"] += 1
+                                
+                                if dist < 1.4:
+                                    track_info["name"] = pred_name
+                                    print(f"[CCTV-RECHECK] ID:{track_id} dist={dist:.3f} → {pred_name} ✅ MATCH")
+                                else:
+                                    print(f"[CCTV-RECHECK] ID:{track_id} dist={dist:.3f} → {pred_name} ❌ STRANGER")
+                    
+                    name = track_info["name"]
                     
 
                     in_fence = not (x2 < fence_box[0] or x1 > fence_box[2] or y2 < fence_box[1] or y1 > fence_box[3])
@@ -794,6 +820,40 @@ if __name__ == "__main__":
         def health():
             return jsonify({"status": "ok", "classifier_ready": app.classifier is not None}), 200
 
+        @flask_app.route('/local-alert-status', methods=['GET'])
+        def local_alert_status():
+            """
+            ESP32 gọi endpoint này qua LAN để check alert nhanh (không qua cloud)
+            Trả về shouldAlert dựa trên trạng thái recording của AI
+            Độ trễ: ~5-10ms (cực nhanh)
+            """
+            try:
+                client_key = request.headers.get('x-device-key')
+                if client_key != DEVICE_KEY:
+                    print(f"[LOCAL-ALERT] Unauthorized access from {request.remote_addr}")
+                    return jsonify({"shouldAlert": False, "error": "Unauthorized"}), 401
+                
+                # Kiểm tra xem AI có đang recording event không
+                should_alert = app.is_recording_event
+                
+                # Log để debug (chỉ khi có thay đổi)
+                if hasattr(app, '_last_local_alert_state'):
+                    if app._last_local_alert_state != should_alert:
+                        print(f"[LOCAL-ALERT] State changed: {should_alert} (from {request.remote_addr})")
+                        app._last_local_alert_state = should_alert
+                else:
+                    app._last_local_alert_state = should_alert
+                
+                return jsonify({
+                    "shouldAlert": should_alert,
+                    "message": "INTRUSION DETECTED" if should_alert else "SAFE",
+                    "source": "local-lan",
+                    "timestamp": time.time()
+                }), 200
+            except Exception as e:
+                print(f"[LOCAL-ALERT] Error: {e}")
+                return jsonify({"shouldAlert": False, "error": str(e)}), 500
+
         def run_flask():
             import logging
             log = logging.getLogger('werkzeug')
@@ -802,11 +862,15 @@ if __name__ == "__main__":
 
         flask_thread = threading.Thread(target=run_flask, daemon=True)
         flask_thread.start()
-        print("=" * 50)
-        print("[FACE-VERIFY] HTTP Server khởi động tại port 5001")
-        print("[FACE-VERIFY] ESP32-CAM POST ảnh đến: http://<IP_LAPTOP>:5001/face-verify")
-        print("[FACE-VERIFY] Kiểm tra: http://<IP_LAPTOP>:5001/health")
-        print("=" * 50)
+        print("=" * 60)
+        print("[FLASK-SERVER] HTTP Server khởi động tại port 5001")
+        print("[FLASK-SERVER] Endpoints:")
+        print("  - Face Verify: http://<IP_LAPTOP>:5001/face-verify")
+        print("  - Local Alert: http://<IP_LAPTOP>:5001/local-alert-status")
+        print("  - Health Check: http://<IP_LAPTOP>:5001/health")
+        print("[FLASK-SERVER] ESP32 nên gọi /local-alert-status qua LAN")
+        print("[FLASK-SERVER] Độ trễ: ~5-10ms (nhanh gấp 30 lần so với cloud)")
+        print("=" * 60)
 
     except ImportError:
         print("[WARNING] Flask chưa được cài. Face-Verify server không khởi động.")

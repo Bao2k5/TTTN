@@ -1,8 +1,9 @@
-# 🦅 Hệ thống Giám sát An ninh & Quản lý Cửa hàng Trang sức Thông minh
+# 🏆 Hệ thống Giám sát An ninh & Quản lý Cửa hàng Trang sức Thông minh
 
-> **Đồ án Thực tập Tốt nghiệp (Graduation Project) - Học viện Hàng không Việt Nam (VAA)** > _Chủ đề: Tích hợp Edge AI, IoT và Điện toán Đám mây (Hybrid Cloud Model)_
+> **Đồ án Thực tập Tốt nghiệp (Graduation Project) - Học viện Hàng không Việt Nam (VAA)**  
+> _Chủ đề: Tích hợp Edge AI, IoT và Điện toán Đám mây (Hybrid Cloud Model)_
 >
-> **Giảng viên hướng dẫn:** ThS. Huỳnh Thanh Sơn
+> **Giảng viên hướng dẫn:** ThS. Huỳnh Thanh Sơn  
 > **Nhóm sinh viên:**
 >
 > - Lê Dương Bảo (2331540071)
@@ -13,97 +14,318 @@
 
 ## 📖 Giới thiệu (Overview)
 
-Dự án phát triển một hệ thống quản lý bán lẻ O2O (Online-to-Offline) toàn diện, tích hợp các công nghệ tiên tiến nhất hiện nay để giải quyết bài toán an ninh và tự động hóa cho các Cửa hàng Trang sức/Tiệm vàng.
+Dự án phát triển một **hệ thống quản lý bán lẻ O2O (Online-to-Offline)** toàn diện, tích hợp các công nghệ tiên tiến nhất hiện nay để giải quyết bài toán an ninh và tự động hóa cho các Cửa hàng Trang sức Bạc.
 
 **Điểm đột phá (Key Innovations):**
 
-- **Hybrid Cloud Architecture:** Kết hợp sức mạnh xử lý tức thời tại biên (**Edge AI**) và khả năng lưu trữ linh hoạt trên đám mây (**Web Server & Cloudinary**).
-- **Active Defense (Phòng vệ chủ động):** Không chỉ giám sát bị động, hệ thống tự động kích hoạt loa/còi/khóa cửa ngay khi AI phát hiện hành vi khả nghi.
+- **Hybrid Cloud-Edge AI Architecture:** Kết hợp xử lý AI tại biên (Edge) với quản lý tập trung trên Cloud (AWS EC2 + MongoDB Atlas)
+- **Active Defense (Phòng vệ chủ động):** Tự động phát hiện xâm nhập và kích hoạt cảnh báo vật lý (còi, đèn, khóa cửa) ngay lập tức
+- **Face Recognition với InsightFace:** Nhận diện nhân viên VIP để tự động mở khóa, phát hiện người lạ xâm nhập vùng cấm
+- **Real-time Video Recording:** Ghi lại video bằng chứng và upload lên Cloudinary tự động khi có cảnh báo
+- **E-commerce Platform:** Sàn thương mại điện tử hoàn chỉnh với thanh toán Stripe, SePay (VietQR), COD
+- **AI Chatbot:** Tích hợp Gemini 1.5 Flash + Ollama local để tư vấn khách hàng và hỗ trợ admin
 
 ---
 
 ## 🏗️ Kiến trúc Hệ thống (System Architecture)
 
-![Architecture Diagram](https://mermaid.ink/img/pako:eNqVVE1v2zAM_SuEzsmwDfa066XosA3YdnOw7WGHQZcTm4otd5KcpFmK_verlO0k3aLoJBL58fGRj1QoK41Sofxe82I0-lYw9sR-Wc_F6UmsTqJTiq4U_dZ0G8OtH770_ss_b79v_779_fXr9_evP9-_vS9TylQ4U_5MhfsKdyucl_8l4b3CnQoX5f_w9_3Pjy9vv74tU8yUM6b8hTIzJ2aWTH9l5kKZo8wsmf6QmQczc2QWTH_IrIaZNTIrpj_gR59i1mGmnTH9gR99hpkJMxNmnDH9gR99hpl3Zt6Zecf0B370WWYemHlg5oGZ90x_4EefZuaRmUdmHpl5z_QHfvRZZp6YeWLmiZn3TH_gR59l5pmZZ2aemXnP9Ad-9DlmPjHzKS7_lJmPTH_4Qd-F4tUqFcvVatUqXq9Sdb5eJdVulSrLVat4s0qV5btVqiz_rVJluVml2nK7SrXlTyy3q1RZbqN_t0y15XaZassfWW6XqbbcrtNsuf2A5XadZsvtOs2W2w9YbtZpttxs0my5Pcxyu06z5Wadast_sNyk2XKTZstNmi03aba8SrPVKu23q1RbrtJ-u0q15Srt96tUW67Sfr9KteUq7f-vUrWl)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        CLOUD LAYER                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
+│  │   Vercel     │  │   AWS EC2    │  │  Cloudinary  │         │
+│  │  (Frontend)  │  │  (Backend)   │  │ (Media CDN)  │         │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘         │
+│         │                  │                  │                  │
+│         └──────────────────┼──────────────────┘                  │
+│                            │                                     │
+│                   ┌────────▼────────┐                           │
+│                   │  MongoDB Atlas  │                           │
+│                   │   (Database)    │                           │
+│                   └─────────────────┘                           │
+└─────────────────────────────────────────────────────────────────┘
+                            │
+                    Socket.IO + REST API
+                            │
+┌─────────────────────────────────────────────────────────────────┐
+│                        EDGE LAYER                               │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │              AI Service (Python)                         │  │
+│  │  - YOLO11n (Face Detection + Tracking)                  │  │
+│  │  - InsightFace (Face Recognition)                       │  │
+│  │  - MediaPipe (Hand Intrusion Detection)                 │  │
+│  │  - Flask API (/face-verify for ESP32-CAM)              │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                            │                                     │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │              IoT Firmware (ESP32)                        │  │
+│  │  - PIR Motion Sensor                                     │  │
+│  │  - DHT11 (Temperature/Humidity)                          │  │
+│  │  - Servo Motor (Door Lock)                              │  │
+│  │  - Buzzer + LED (Alarm)                                 │  │
+│  │  - LCD I2C Display                                       │  │
+│  │  - Blynk IoT Platform                                    │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 Hệ thống hoạt động dựa trên mô hình **3-Layer**:
 
 1.  **Edge Layer (Tại cửa hàng):**
-    - **Camera AI:** Chạy model YOLO11/InsightFace/MediaPipe để phát hiện xâm nhập và nhận diện khách hàng VIP Real-time.
-    - **IoT Controller (ESP32):** Điều khiển thiết bị vật lý (Còi, Đèn, Khóa từ) qua giao thức MQTT.
+    - **AI Service (Laptop/Gateway):** Chạy YOLO11 + InsightFace + MediaPipe để phát hiện xâm nhập và nhận diện khuôn mặt real-time
+    - **IoT Controller (ESP32):** Điều khiển thiết bị vật lý (Còi, Đèn, Khóa cửa, LCD) qua WiFi + Blynk
 2.  **Cloud Layer:**
-    - **Web Socket/API (Render):** Broker trung gian nhận tín hiệu từ Edge.
-    - **Cloudinary:** Nền tảng lưu trữ Video/Image tốc độ cao.
-    - **MongoDB Atlas:** Lưu trữ dữ liệu hệ thống và Log an ninh.
+    - **AWS EC2 Backend:** Node.js + Express.js + Socket.IO xử lý logic nghiệp vụ
+    - **Cloudinary:** Lưu trữ video/image cảnh báo với CDN tốc độ cao
+    - **MongoDB Atlas:** Database lưu trữ users, products, orders, security logs
 3.  **Application Layer:**
-    - **Web Dashboard:** Giao diện quản lý tập trung cho chủ cửa hàng.
-    - **MongoDB:** Lưu trữ thông tin khách hàng, sản phẩm, đơn hàng.
+    - **Vercel Frontend:** React + TailwindCSS dashboard quản lý tập trung
+    - **Admin Dashboard:** 9 trang quản trị (Products, Orders, Users, Security, Analytics...)
+    - **Customer Portal:** E-commerce với giỏ hàng, thanh toán, tracking đơn hàng
 
 ---
 
-## � Công nghệ Sử dụng (Tech Stack)
+## 🛠️ Công nghệ Sử dụng (Tech Stack)
 
-| Lĩnh vực       | Công nghệ chính             | Ghi chú                               |
-| :------------- | :-------------------------- | :------------------------------------ |
-| **Backend**    | **NodeJS, ExpressJS**       | Xây dựng RESTful API hiệu năng cao    |
-| **Frontend**   | **ReactJS, TailwindCSS**    | Web Dashboard Responsive & Chart.js   |
-| **Database**   | **MongoDB Atlas**           | Mô hình NoSQL linh hoạt, truy vấn nhanh |
-| **PaaS/Cloud** | **Vercel, Render, Cloudinary**| Hạ tầng Cloud chuẩn công nghiệp       |
-| **AI/ML**      | **Python, YOLO11, InsightFace**| Xử lý ảnh và Computer Vision          |
-| **Hardware**   | **ESP32, Sensors**          | Lập trình nhúng C/C++                 |
+### **Backend**
+- **Runtime:** Node.js 18+
+- **Framework:** Express.js 5.x
+- **Real-time:** Socket.IO 4.8
+- **Database:** MongoDB Atlas (Mongoose 8.x)
+- **Authentication:** JWT + Passport (Google/Facebook OAuth)
+- **Payment:** Stripe, SePay (VietQR động), COD
+- **Security:** Helmet, CORS, Rate Limiting, XSS Protection, HPP, Mongo Sanitize
+- **Email:** SendGrid (OTP verification)
+- **AI Chatbot:** Google Gemini 1.5 Flash + Ollama (Gemma 3:4b local)
+- **Deploy:** AWS EC2
+
+### **Frontend**
+- **Framework:** React 18.3 + Vite 5.x
+- **Styling:** TailwindCSS 3.4
+- **State Management:** Zustand 4.5
+- **Data Fetching:** React Query (TanStack Query 5.x)
+- **Forms:** React Hook Form 7.x
+- **UI Components:** Framer Motion, React Icons, Swiper
+- **Charts:** Recharts 3.8
+- **Deploy:** Vercel
+
+### **AI/Edge AI Service**
+- **Language:** Python 3.9+
+- **Face Detection:** YOLO11n (Ultralytics 8.0+)
+- **Face Tracking:** ByteTrack
+- **Face Recognition:** InsightFace 0.7+ (ArcFace, buffalo_l model)
+- **Hand Detection:** MediaPipe 0.10+
+- **Deep Learning:** PyTorch 2.0+, ONNX Runtime 1.16+
+- **Computer Vision:** OpenCV 4.8+
+- **API Server:** Flask 3.0
+- **Database:** MongoDB (PyMongo 4.3+)
+- **Media Upload:** Cloudinary SDK
+
+### **IoT Firmware**
+- **Microcontroller:** ESP32 (Arduino IDE)
+- **Language:** C/C++
+- **RTOS:** FreeRTOS (multi-task)
+- **IoT Platform:** Blynk
+- **Sensors:** PIR, DHT11, Reed Switch
+- **Actuators:** Servo Motor, Buzzer, LED x4, Relay
+- **Display:** LCD I2C 16x2
+- **Communication:** WiFi, HTTPS (WiFiClientSecure)
+
+### **Cloud Infrastructure**
+- **Compute:** AWS EC2 (Backend API)
+- **Hosting:** Vercel (Frontend SPA)
+- **Database:** MongoDB Atlas (M0 Free Tier)
+- **CDN/Storage:** Cloudinary (Video/Image)
+- **Domain:** Zapto.org (Dynamic DNS)
 
 ---
 
-## � Cài đặt & Triển khai (Installation)
+## 🚀 Cài đặt & Triển khai (Installation)
 
 ### Yêu cầu tiên quyết (Prerequisites)
 
-- Node.js >= 18.x
-- Python >= 3.9
-- Arduino IDE (cho ESP32)
-- Tài khoản Cloudinary & MongoDB (để lưu trữ data)
+- **Node.js** >= 18.0.0
+- **Python** >= 3.9
+- **Arduino IDE** (cho ESP32)
+- **MongoDB Atlas** account
+- **Cloudinary** account
+- **Blynk** account (cho IoT)
 
-### Bước 1: Khởi chạy Web Server
+### Bước 1: Clone Repository
 
 ```bash
-git clone https://github.com/Bao2k5/Smart-Jewelry-Store.git
-cd Web-App
-npm install
-npm run start
+git clone https://github.com/Bao2k5/DoAn_TTTN.git
+cd DoAn_TTTN
 ```
 
-_Server sẽ chạy tại: `http://localhost:3000`_
+### Bước 2: Setup Backend (Node.js)
 
-### Bước 2: Kích hoạt AI Module
+```bash
+cd Web-App/BE
+npm install
+cp .env.example .env
+# Chỉnh sửa .env với MongoDB URI, JWT Secret, Cloudinary credentials...
+npm run dev  # Development mode
+npm start    # Production mode
+```
+
+Backend sẽ chạy tại: `http://localhost:3000`
+
+### Bước 3: Setup Frontend (React)
+
+```bash
+cd Web-App/FE
+npm install
+cp .env.example .env
+# Chỉnh sửa VITE_API_URL trỏ đến backend
+npm run dev  # Development mode (port 3001)
+npm run build  # Production build
+```
+
+Frontend sẽ chạy tại: `http://localhost:3001`
+
+### Bước 4: Setup AI Service (Python)
 
 ```bash
 cd AI-Service
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python detection_service.py
+
+# Tải YOLO11 model
+wget https://github.com/ultralytics/assets/releases/download/v0.0.0/yolo11n.pt
+
+# Chạy AI Service
+python AI_Face.py
 ```
 
-### Bước 3: Nạp Firmware cho ESP32
+AI Service sẽ:
+- Mở GUI Tkinter để quản lý
+- Khởi động Flask API tại `http://0.0.0.0:5001`
 
-1. Mở `IoT-Firmware/SmartStore_ESP32.ino` bằng Arduino IDE.
-2. Cập nhật thông tin WiFi và Token mạng trong file cấu hình.
-3. Nhấn **Upload** để nạp code.
+### Bước 5: Nạp Firmware cho ESP32
+
+1. Mở Arduino IDE
+2. Cài đặt ESP32 board support: `https://dl.espressif.com/dl/package_esp32_index.json`
+3. Cài đặt thư viện: Blynk, DHT sensor library, LiquidCrystal I2C
+4. Mở `IoT-Firmware/Smart_Jewelry_IoT/Smart_Jewelry_IoT.ino`
+5. Cập nhật WiFi credentials và Blynk auth token
+6. Chọn board: **ESP32 Dev Module**
+7. Upload firmware
+
+---
+
+## 📊 Tính năng Chính (Key Features)
+
+### **1. E-commerce Platform**
+- ✅ Đăng ký/Đăng nhập (Email + OAuth Google/Facebook)
+- ✅ Quản lý sản phẩm (CRUD với upload ảnh Cloudinary)
+- ✅ Giỏ hàng + Wishlist
+- ✅ Thanh toán đa kênh (Stripe, SePay VietQR, COD)
+- ✅ Quản lý đơn hàng (Order tracking)
+- ✅ Hệ thống coupon/discount
+- ✅ Review & Rating sản phẩm
+- ✅ Admin Dashboard (9 trang quản trị)
+
+### **2. Smart Security System**
+- ✅ Face Detection + Tracking (YOLO11 + ByteTrack)
+- ✅ Face Recognition (InsightFace ArcFace)
+- ✅ Hand Intrusion Detection (MediaPipe)
+- ✅ Real-time Video Recording (pre-roll + post-roll buffer)
+- ✅ Auto Upload to Cloudinary khi có cảnh báo
+- ✅ Socket.IO real-time alerts đến Admin Dashboard
+- ✅ Face-based Door Unlock (nhận diện nhân viên VIP)
+- ✅ ESP32 IoT Controller (Buzzer, LED, Servo Lock)
+
+### **3. AI Chatbot**
+- ✅ Dual AI Model (Gemini 1.5 Flash + Ollama Gemma 3:4b)
+- ✅ Context-aware (biết thông tin sản phẩm, đơn hàng, cảm biến)
+- ✅ Multi-turn conversation history
+- ✅ Admin mode (truy vấn logs, nhiệt độ, trạng thái hệ thống)
+- ✅ Customer mode (tư vấn sản phẩm trang sức bạc)
+
+### **4. IoT Monitoring**
+- ✅ Temperature & Humidity logging (DHT11)
+- ✅ Motion detection (PIR sensor)
+- ✅ Door status (Reed switch)
+- ✅ Remote door unlock (Servo motor)
+- ✅ Alarm system (Buzzer + LED)
+- ✅ LCD display (status messages)
+- ✅ Blynk mobile app integration
+
+---
+
+## 🎯 Demo & Live URLs
+
+- **Frontend (Vercel):** [https://hmjewelry.vercel.app](https://hmjewelry.vercel.app)
+- **Backend (AWS EC2):** `https://hm-vault.zapto.org/api`
+- **AI Service:** Local only (Flask port 5001)
+
+**Test Accounts:**
+- Admin: `admin@example.com` / `admin123`
+- User: `user@hmjewelry.com` / `user123`
 
 ---
 
 ## 👥 Đội ngũ Phát triển (Development Team)
 
-Dự án được thực hiện bởi nhóm sinh viên Khoa CNTT - Học viện Hàng không Việt Nam:
-
 1.  **Lê Dương Bảo (Team Leader)**
-    - Vai trò: **Backend Lead, System Architect**.
-    - Trách nhiệm: Thiết kế hệ thống, Code Backend API, Tích hợp Web Dashboard.
+    - Vai trò: **Full-stack Developer, System Architect**
+    - Trách nhiệm: Backend API, Database Design, System Integration, Deployment
 2.  **Đặng Cao Minh Anh**
-    - Vai trò: **AI & Cloud Engineer**.
-    - Trách nhiệm: Phát triển mô hình Edge AI (YOLO11, InsightFace), Quản lý Cloudinary và luồng Socket.IO.
+    - Vai trò: **AI Engineer, Cloud Engineer**
+    - Trách nhiệm: Edge AI (YOLO11, InsightFace, MediaPipe), Cloudinary Integration, Socket.IO
 3.  **Nguyễn Lê Hưng**
-    - Vai trò: **IoT Engineer**.
-    - Trách nhiệm: Lập trình firmware ESP32, thiết kế mạch phần cứng.
+    - Vai trò: **IoT Engineer, Hardware Engineer**
+    - Trách nhiệm: ESP32 Firmware, Circuit Design, Sensor Integration, Blynk Platform
 
 ---
 
-_© 2025 Smart Jewelry Store Project - All Rights Reserved._
+## 🔒 Bảo mật (Security)
+
+### ⚠️ QUAN TRỌNG - Trước khi Deploy
+
+Dự án này sử dụng file `.env` để lưu trữ thông tin nhạy cảm. **KHÔNG BAO GIỜ** commit file `.env` lên Git/GitHub.
+
+**Các file cần bảo vệ:**
+- `Web-App/BE/.env` - Backend credentials
+- `AI-Service/.env` - AI Service credentials
+- `.env` (root) - Shared credentials
+
+**Checklist bảo mật:**
+- ✅ File `.gitignore` đã có `**/.env`
+- ✅ Chỉ commit file `.env.example` (không chứa thông tin thật)
+- ✅ Thay đổi tất cả passwords/secrets khi deploy production
+- ✅ Sử dụng biến môi trường thay vì hardcode trong code
+
+### Cấu hình `.env`
+
+Mỗi service cần file `.env` riêng:
+
+```bash
+# Backend
+cp Web-App/BE/.env.example Web-App/BE/.env
+
+# AI Service
+cp AI-Service/.env.example AI-Service/.env
+```
+
+Sau đó chỉnh sửa các giá trị trong file `.env` với thông tin thực tế.
+
+### Thông tin nhạy cảm cần bảo vệ
+
+| Loại | Ví dụ | Rủi ro nếu lộ |
+|------|-------|---------------|
+| Database URI | `mongodb+srv://...` | Truy cập toàn bộ database |
+| JWT Secret | `supersecret_key` | Giả mạo token, chiếm tài khoản |
+| API Keys | Cloudinary, Gemini | Sử dụng dịch vụ trái phép |
+| OAuth Secrets | Google, Facebook | Chiếm quyền đăng nhập |
+| Device Keys | `IoT_Secure_Vault_2024` | Điều khiển IoT trái phép |
+
+---
+
+## 📄 License
+
+© 2025 Smart Jewelry Store Project - All Rights Reserved.
+
+**Học viện Hàng không Việt Nam (Vietnam Aviation Academy)**

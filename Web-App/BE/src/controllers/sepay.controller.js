@@ -1,22 +1,7 @@
-// src/controllers/sepay.controller.js
-// Tích hợp SePay - Tự động xác nhận thanh toán chuyển khoản
-
 const Order = require('../models/order.model');
 
-/**
- * SePay Webhook Documentation:
- * - Đăng ký tại: https://my.sepay.vn
- * - Liên kết tài khoản ngân hàng (MB Bank)
- * - Cấu hình Webhook URL: https://hm-jewelry-api.onrender.com/api/payment/sepay/webhook
- * - SePay sẽ gọi webhook mỗi khi có giao dịch mới
- */
-
-// Secret key từ SePay (cấu hình trong .env)
 const SEPAY_API_KEY = process.env.SEPAY_API_KEY || '';
 
-// @desc    Webhook nhận thông báo giao dịch từ SePay
-// @route   POST /api/payment/sepay/webhook
-// @access  Public (nhưng verify bằng API key)
 exports.handleWebhook = async (req, res) => {
   try {
     console.log('=== SEPAY WEBHOOK RECEIVED ===');
@@ -31,24 +16,6 @@ exports.handleWebhook = async (req, res) => {
       console.log('Invalid API Key');
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
-
-    /**
-     * SePay gửi dữ liệu dạng:
-     * {
-     *   "id": 123456,
-     *   "gateway": "MBBank",
-     *   "transactionDate": "2024-01-15 10:30:00",
-     *   "accountNumber": "0375225749",
-     *   "code": null,
-     *   "content": "HM67890ABCDEF thanh toan don hang",
-     *   "transferType": "in",
-     *   "transferAmount": 500000,
-     *   "accumulated": 1500000,
-     *   "subAccount": null,
-     *   "referenceCode": "FT24015...",
-     *   "description": "..."
-     * }
-     */
 
     const {
       id: transactionId,
@@ -81,9 +48,6 @@ exports.handleWebhook = async (req, res) => {
     }
 
     const orderId = orderIdMatch[1];
-    console.log('Extracted Order ID:', orderId);
-
-    // Tìm đơn hàng trong database
     const order = await Order.findById(orderId);
 
     if (!order) {
@@ -151,12 +115,8 @@ exports.handleWebhook = async (req, res) => {
     
     await order.save();
 
-    console.log('=== ORDER CONFIRMED ===');
     console.log('Order ID:', orderId);
     console.log('Amount:', transferAmount);
-
-    // TODO: Gửi email/SMS thông báo cho khách hàng
-    // TODO: Gửi Socket.IO event để cập nhật realtime
 
     res.json({
       success: true,
@@ -176,9 +136,6 @@ exports.handleWebhook = async (req, res) => {
   }
 };
 
-// @desc    Kiểm tra trạng thái thanh toán của đơn hàng
-// @route   GET /api/payment/sepay/check/:orderId
-// @access  Public
 exports.checkPaymentStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -209,9 +166,6 @@ exports.checkPaymentStatus = async (req, res) => {
   }
 };
 
-// @desc    Test webhook (for debugging)
-// @route   POST /api/payment/sepay/test-webhook
-// @access  Private (Admin only in production)
 exports.testWebhook = async (req, res) => {
   try {
     const testPayload = {

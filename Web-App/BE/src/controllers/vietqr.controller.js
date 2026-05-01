@@ -1,26 +1,16 @@
-// src/controllers/vietqr.controller.js
-// Tích hợp VietQR - Thanh toán chuyển khoản ngân hàng qua QR
 
-/**
- * VietQR API Documentation: https://www.vietqr.io/
- * Format QR: https://img.vietqr.io/image/<BANK_ID>-<ACCOUNT_NO>-<template>.jpg?amount=<AMOUNT>&addInfo=<MESSAGE>
- */
 
-// ========== CẤU HÌNH THANH TOÁN ==========
-
-// Cấu hình BIDV (dùng Virtual Account từ SePay)
 const BANK_CONFIG = {
   bankId: 'BIDV',
   bankName: 'BIDV',
-  accountNo: '96247L34AD',  // Số VA từ SePay (liên kết với STK thật)
+  accountNo: '96247L34AD',
   accountName: 'LE DUONG BAO',
   template: 'compact2'
 };
 
-// Danh sách mã ngân hàng VietQR
 const BANK_LIST = {
   'VCB': 'Vietcombank',
-  'TCB': 'Techcombank', 
+  'TCB': 'Techcombank',
   'MB': 'MB Bank',
   'ACB': 'ACB',
   'VPB': 'VPBank',
@@ -41,24 +31,24 @@ const BANK_LIST = {
 exports.generateQR = async (req, res) => {
   try {
     const { orderId, amount, customerName } = req.body;
-    
+
     console.log('[VietQR] Generate request:', { orderId, amount, customerName, userId: req.user?.id });
-    
+
     if (!orderId || !amount) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Thiếu thông tin đơn hàng' 
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin đơn hàng'
       });
     }
-    
+
     // Tạo nội dung chuyển khoản - giữ ngắn gọn
     const transferContent = `HM${orderId.slice(-8)}`.toUpperCase();
-    
+
     // Tạo URL QR từ VietQR
     const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.bankId}-${BANK_CONFIG.accountNo}-${BANK_CONFIG.template}.jpg?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(BANK_CONFIG.accountName)}`;
-    
+
     console.log('[VietQR] Generated QR URL:', qrUrl);
-    
+
     res.json({
       success: true,
       data: {
@@ -123,13 +113,7 @@ exports.getBankConfig = async (req, res) => {
 exports.verifyPayment = async (req, res) => {
   try {
     const { orderId, transactionId } = req.body;
-    
-    // NOTE: Để tự động xác nhận thanh toán, cần tích hợp:
-    // 1. Casso.vn - Webhook tự động từ ngân hàng
-    // 2. SePay - API kiểm tra giao dịch
-    // 3. Hoặc admin xác nhận thủ công
-    
-    // Tạm thời: Admin sẽ xác nhận thủ công
+
     res.json({
       success: true,
       message: 'Đã ghi nhận. Vui lòng đợi xác nhận từ hệ thống.',
@@ -140,8 +124,7 @@ exports.verifyPayment = async (req, res) => {
   }
 };
 
-// @desc    Get all payment methods config
-// @route   GET /api/payment/config
+
 exports.getAllPaymentConfig = async (req, res) => {
   try {
     res.json({

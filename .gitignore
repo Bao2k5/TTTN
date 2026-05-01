@@ -5,6 +5,10 @@
 env/
 venv/
 
+# IoT Firmware Secrets
+**/config.h
+IoT-Firmware/**/config.h
+
 # Dependencies
 node_modules/
 **/node_modules/
@@ -30,3 +34,46 @@ build/
 # Project Documentation (Local only)
 system_design.md
 sequence_diagrams.md
+
+# Local testing and setup guides (không push lên GitHub)
+**/TEST_*.md
+**/QUICK_*.md
+**/POSTMAN_*.md
+API_TEST_CHECKLIST.md
+SETUP_OAUTH_GOOGLE_FACEBOOK.md
+SECURITY_AUDIT.md
+OPTIMIZATION_SUMMARY.md
+HYBRID_MODE_SETUP.md
+SETUP_FOR_YOUR_LAPTOP.md
+QUICK_CHECKLIST.md
+QUICK_START_HYBRID.md
+POSTMAN_COMPLETE_TEST_GUIDE.md
+TEST_COMPLETE_GUIDE.md
+TEST_FACE_ID_UNLOCK.md
+TEST_WEB_UNLOCK_POSTMAN.md
+TEST_COMPLETE_FACE_ID_FLOW.md
+TEST_FACE_ID_ACCURACY_METRICS.md
+
+# AI Service local docs
+AI-Service/ALERT_*.md
+AI-Service/FIX_*.md
+AI-Service/PERFORMANCE*.md
+AI-Service/CHANGELOG.md
+AI-Service/README.md
+AI-Service/start_ai.bat
+AI-Service/test_config.py
+
+# IoT local docs
+IoT-Firmware/README.md
+IoT-Firmware/**/config.h.example
+
+# Postman collections (local only)
+Smart_Jewelry_Vault.postman_collection.json
+.postman/
+postman/
+
+# Kiro IDE
+.kiro/
+
+# Other local files
+KICH_BAN_THUYET_TRINH_FORMATTED.docx
