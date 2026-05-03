@@ -27,64 +27,6 @@ Dự án phát triển một **hệ thống quản lý bán lẻ O2O (Online-to-
 
 ---
 
-## 🏗️ Kiến trúc Hệ thống (System Architecture)
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        CLOUD LAYER                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │   Vercel     │  │   AWS EC2    │  │  Cloudinary  │         │
-│  │  (Frontend)  │  │  (Backend)   │  │ (Media CDN)  │         │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘         │
-│         │                  │                  │                  │
-│         └──────────────────┼──────────────────┘                  │
-│                            │                                     │
-│                   ┌────────▼────────┐                           │
-│                   │  MongoDB Atlas  │                           │
-│                   │   (Database)    │                           │
-│                   └─────────────────┘                           │
-└─────────────────────────────────────────────────────────────────┘
-                            │
-                    Socket.IO + REST API
-                            │
-┌─────────────────────────────────────────────────────────────────┐
-│                        EDGE LAYER                               │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │              AI Service (Python)                         │  │
-│  │  - YOLO11n (Face Detection + Tracking)                  │  │
-│  │  - InsightFace (Face Recognition)                       │  │
-│  │  - MediaPipe (Hand Intrusion Detection)                 │  │
-│  │  - Flask API (/face-verify for ESP32-CAM)              │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                            │                                     │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │              IoT Firmware (ESP32)                        │  │
-│  │  - PIR Motion Sensor                                     │  │
-│  │  - DHT11 (Temperature/Humidity)                          │  │
-│  │  - Servo Motor (Door Lock)                              │  │
-│  │  - Buzzer + LED (Alarm)                                 │  │
-│  │  - LCD I2C Display                                       │  │
-│  │  - Blynk IoT Platform                                    │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-Hệ thống hoạt động dựa trên mô hình **3-Layer**:
-
-1.  **Edge Layer (Tại cửa hàng):**
-    - **AI Service (Laptop/Gateway):** Chạy YOLO11 + InsightFace + MediaPipe để phát hiện xâm nhập và nhận diện khuôn mặt real-time
-    - **IoT Controller (ESP32):** Điều khiển thiết bị vật lý (Còi, Đèn, Khóa cửa, LCD) qua WiFi + Blynk
-2.  **Cloud Layer:**
-    - **AWS EC2 Backend:** Node.js + Express.js + Socket.IO xử lý logic nghiệp vụ
-    - **Cloudinary:** Lưu trữ video/image cảnh báo với CDN tốc độ cao
-    - **MongoDB Atlas:** Database lưu trữ users, products, orders, security logs
-3.  **Application Layer:**
-    - **Vercel Frontend:** React + TailwindCSS dashboard quản lý tập trung
-    - **Admin Dashboard:** 9 trang quản trị (Products, Orders, Users, Security, Analytics...)
-    - **Customer Portal:** E-commerce với giỏ hàng, thanh toán, tracking đơn hàng
-
----
-
 ## 🛠️ Công nghệ Sử dụng (Tech Stack)
 
 ### **Backend**
@@ -261,9 +203,7 @@ AI Service sẽ:
 - **Backend (AWS EC2):** `https://hm-vault.zapto.org/api`
 - **AI Service:** Local only (Flask port 5001)
 
-**Test Accounts:**
-- Admin: `admin@example.com` / `admin123`
-- User: `user@hmjewelry.com` / `user123`
+> **Lưu ý:** Để truy cập demo, vui lòng liên hệ với đội ngũ phát triển.
 
 ---
 
