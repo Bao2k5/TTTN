@@ -157,7 +157,7 @@ AI Service sẽ:
 
 ---
 
-## 📊 Tính năng Chính (Key Features)
+##  Tính năng Chính (Key Features)
 
 ### **1. E-commerce Platform**
 - ✅ Đăng ký/Đăng nhập (Email + OAuth Google/Facebook)
@@ -199,7 +199,7 @@ AI Service sẽ:
 
 ## 🎯 Demo & Live URLs
 
-- **Frontend (Vercel):** [https://hmjewelry.vercel.app](https://hmjewelry.vercel.app)
+- **Frontend (Vercel):** [https://tttn-two.vercel.app](https://tttn-two.vercel.app)
 - **Backend (AWS EC2):** `https://hm-vault.zapto.org/api`
 - **AI Service:** Local only (Flask port 5001)
 
