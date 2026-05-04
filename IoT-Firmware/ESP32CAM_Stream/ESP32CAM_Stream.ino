@@ -64,12 +64,12 @@ bool initCamera() {
   config.pixel_format = PIXFORMAT_JPEG;
 
   if (psramFound()) {
-    config.frame_size   = FRAMESIZE_SVGA;
-    config.jpeg_quality = 8;
+    config.frame_size   = FRAMESIZE_VGA;  // Giảm từ SVGA xuống VGA để tăng chất lượng
+    config.jpeg_quality = 6;  // Giảm từ 8 xuống 6 (chất lượng cao hơn, 0=best, 63=worst)
     config.fb_count     = 2;
   } else {
     config.frame_size   = FRAMESIZE_VGA;
-    config.jpeg_quality = 10;
+    config.jpeg_quality = 8;  // Giữ 8 cho trường hợp không có PSRAM
     config.fb_count     = 1;
   }
 
@@ -80,18 +80,32 @@ bool initCamera() {
   }
 
   sensor_t* s = esp_camera_sensor_get();
-  s->set_brightness(s, 1);
-  s->set_contrast(s, 1);
-  s->set_whitebal(s, 1);
-  s->set_awb_gain(s, 1);
-  s->set_exposure_ctrl(s, 1);
-  s->set_aec2(s, 1);
-  s->set_gain_ctrl(s, 1);
-  s->set_hmirror(s, 0);
-  s->set_vflip(s, 0);
-  s->set_vflip(s, 0);
+  
+  // Cải thiện chất lượng ảnh cho Face Recognition
+  s->set_brightness(s, 1);     // Tăng độ sáng (+1)
+  s->set_contrast(s, 2);       // Tăng contrast (+2) để rõ nét hơn
+  s->set_saturation(s, 0);     // Giữ màu tự nhiên
+  s->set_sharpness(s, 2);      // Tăng độ sắc nét (+2)
+  s->set_whitebal(s, 1);       // Bật white balance tự động
+  s->set_awb_gain(s, 1);       // Bật auto white balance gain
+  s->set_wb_mode(s, 0);        // Auto white balance mode
+  s->set_exposure_ctrl(s, 1);  // Bật auto exposure
+  s->set_aec2(s, 1);           // Bật AEC sensor
+  s->set_ae_level(s, 1);       // Tăng exposure level (+1)
+  s->set_aec_value(s, 400);    // Set exposure value (300-1200, 400 = balanced)
+  s->set_gain_ctrl(s, 1);      // Bật auto gain
+  s->set_agc_gain(s, 10);      // Set gain level (0-30, 10 = moderate)
+  s->set_gainceiling(s, (gainceiling_t)6);  // Gain ceiling x128
+  s->set_bpc(s, 1);            // Bật black pixel correction
+  s->set_wpc(s, 1);            // Bật white pixel correction
+  s->set_raw_gma(s, 1);        // Bật gamma correction
+  s->set_lenc(s, 1);           // Bật lens correction
+  s->set_hmirror(s, 0);        // Không mirror ngang
+  s->set_vflip(s, 0);          // Không flip dọc
+  s->set_dcw(s, 0);            // Tắt downsize (giữ resolution gốc)
+  s->set_colorbar(s, 0);       // Tắt color bar test pattern
 
-  Serial.println("[CAM] Khởi tạo OK!");
+  Serial.println("[CAM] Khởi tạo OK! (Optimized for Face Recognition)");
   return true;
 }
 
@@ -120,7 +134,7 @@ void scanFaceAndUnlock() {
 
     pinMode(4, OUTPUT);
     digitalWrite(4, HIGH);
-    delay(400); 
+    delay(600);  // Tăng từ 400ms lên 600ms để flash sáng lâu hơn
 
     camera_fb_t * fb = esp_camera_fb_get();
 

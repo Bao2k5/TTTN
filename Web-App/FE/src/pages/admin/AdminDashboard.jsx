@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { api } from '../../services/api';
+import io from 'socket.io-client';
 import {
   AreaChart,
   Area,
@@ -16,6 +17,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [tempHistory, setTempHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [socket, setSocket] = useState(null);
 
   // --- FACE ID UNLOCK STATE ---
   const [faceIdState, setFaceIdState] = useState('idle'); // idle | scanning | success | fail
@@ -23,6 +25,29 @@ const AdminDashboard = () => {
   const pollRef = useRef(null);
   const countdownRef = useRef(null);
   // ----------------------------
+
+  // Initialize Socket.IO connection
+  useEffect(() => {
+    const backendUrl = import.meta.env.VITE_API_URL || 'https://hm-vault.zapto.org';
+    const newSocket = io(backendUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true
+    });
+
+    newSocket.on('connect', () => {
+      console.log('[SOCKET] Connected to backend');
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('[SOCKET] Disconnected from backend');
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.close();
+    };
+  }, []);
 
   useEffect(() => {
     loadAllData();
