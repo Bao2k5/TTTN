@@ -5,7 +5,13 @@ require('dotenv').config({ path: './BE/.env' });
 const mongoose = require('mongoose');
 const Coupon = require('../BE/src/models/coupon.model');
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://leduongbao2019:1234567890@cluster0.cxkxa.mongodb.net/jewelry-shop?retryWrites=true&w=majority&appName=Cluster0';
+const MONGO_URI = process.env.MONGO_URI;
+
+if (!MONGO_URI) {
+  console.error('❌ MONGO_URI not found in .env file');
+  console.error('👉 Please create .env file in Web-App/BE/ directory');
+  process.exit(1);
+}
 
 const coupons = [
   {
