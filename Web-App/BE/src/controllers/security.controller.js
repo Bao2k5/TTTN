@@ -10,7 +10,7 @@ exports.updateLog = async (req, res) => {
         const io = req.app.get('socketio');
 
         const updatedLog = await SecurityLog.findByIdAndUpdate(id, updateData, { new: true });
-        
+
         if (!updatedLog) {
             return res.status(404).json({ success: false, message: 'Log not found' });
         }
@@ -267,5 +267,36 @@ exports.checkFaceScanStatus = async (req, res) => {
     } catch (error) {
         console.error('Error checking face scan status:', error);
         res.json({ shouldScan: false });
+    }
+};
+
+// Report Face ID scan result from ESP32-CAM
+exports.reportFaceScanResult = async (req, res) => {
+    try {
+        const { success, name, message } = req.body;
+        const io = req.app.get('socketio');
+
+        // Clear the scan state
+        await SystemState.findOneAndUpdate(
+            { key: 'face-scan-state' },
+            { shouldScan: false, scanAt: null, lastResult: { success, name, message, timestamp: new Date() } },
+            { upsert: true }
+        );
+
+        // Emit result to Frontend via Socket.IO
+        if (io) {
+            io.emit('face-scan-result', {
+                success,
+                name,
+                message,
+                timestamp: new Date()
+            });
+            console.log(`📡 Emitted 'face-scan-result': ${success ? 'SUCCESS' : 'FAILED'} - ${name}`);
+        }
+
+        res.json({ success: true, message: 'Result received' });
+    } catch (error) {
+        console.error('Error reporting face scan result:', error);
+        res.status(500).json({ success: false, error: 'Server Error' });
     }
 };

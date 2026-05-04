@@ -4,8 +4,6 @@
 #include <wm_strings_en.h>
 #include <wm_strings_es.h>
 
-
-
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
@@ -13,6 +11,25 @@
 #include <WiFiManager.h>
 #include <Preferences.h>
 #include "esp_camera.h"
+
+// ESP32-CAM AI-Thinker Pin Definitions
+#define PWDN_GPIO_NUM     32
+#define RESET_GPIO_NUM    -1
+#define XCLK_GPIO_NUM      0
+#define SIOD_GPIO_NUM     26
+#define SIOC_GPIO_NUM     27
+
+#define Y9_GPIO_NUM       35
+#define Y8_GPIO_NUM       34
+#define Y7_GPIO_NUM       39
+#define Y6_GPIO_NUM       36
+#define Y5_GPIO_NUM       21
+#define Y4_GPIO_NUM       19
+#define Y3_GPIO_NUM       18
+#define Y2_GPIO_NUM        5
+#define VSYNC_GPIO_NUM    25
+#define HREF_GPIO_NUM     23
+#define PCLK_GPIO_NUM     22
 
 char AI_SERVICE_IP[40] = "192.168.1.37";
 const int AI_SERVICE_PORT = 5001;
@@ -86,6 +103,9 @@ void scanFaceAndUnlock() {
   Serial.println("\n[SCAN] Bat dau quet khuon mat...");
 
   int max_retries = 3;
+  bool finalSuccess = false;
+  String finalName = "Unknown";
+  String finalMessage = "";
   
   for (int attempt = 1; attempt <= max_retries; attempt++) {
     Serial.printf("\n[SCAN] --- Lan chup thu %d ---\n", attempt);
@@ -118,8 +138,8 @@ void scanFaceAndUnlock() {
     if (WiFi.status() != WL_CONNECTED) {
       Serial.println("[WIFI] Mất kết nối WiFi!");
       esp_camera_fb_return(fb);
-      isProcessing = false;
-      return;
+      finalMessage = "WiFi disconnected";
+      break;
     }
 
     HTTPClient http;
@@ -127,6 +147,7 @@ void scanFaceAndUnlock() {
     http.begin(verifyUrl);
     http.setTimeout(10000);
     http.addHeader("Content-Type", "image/jpeg");
+    http.addHeader("x-device-key", DEVICE_KEY);
 
     Serial.printf("[HTTP] POST đến AI-Service: %s\n", verifyUrl.c_str());
     int httpCode = http.POST(fb->buf, fb->len);
@@ -145,31 +166,65 @@ void scanFaceAndUnlock() {
 
         if (matched) {
           Serial.printf("[ACCESS] Nhan dien thanh cong: %s\n", nameStr.c_str());
-          isProcessing = false;
-          return;
+          finalSuccess = true;
+          finalName = nameStr;
+          finalMessage = "Face ID verified successfully";
+          http.end();
+          break;
         } else {
           Serial.printf("[ACCESS] Tu choi truy cap: %s\n", nameStr.c_str());
+          finalName = nameStr;
           
           if (nameStr == "No face detected" && attempt < max_retries) {
             Serial.println("[AI] Khong thay khuon mat, dang chup lai...");
+            finalMessage = "No face detected, retrying...";
             continue;
           } else {
             Serial.println("[AI] Ket thuc luong quet.");
-            isProcessing = false;
-            return;
+            finalMessage = "Face ID verification failed: " + nameStr;
+            http.end();
+            break;
           }
         }
       } else {
         Serial.printf("[JSON] Parse loi: %s\n", error.c_str());
+        finalMessage = "JSON parse error";
       }
     } else {
       Serial.printf("[HTTP] Loi HTTP: %d\n", httpCode);
+      finalMessage = "AI Service connection failed";
     }
     http.end();
   }
 
+  // Report result to Backend
+  Serial.println("\n[REPORT] Bao cao ket qua len Backend...");
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+  http.begin(client, String(BE_BASE_URL) + "/face-scan-result");
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("x-device-key", DEVICE_KEY);
+  http.setTimeout(5000);
+
+  StaticJsonDocument<256> resultDoc;
+  resultDoc["success"] = finalSuccess;
+  resultDoc["name"] = finalName;
+  resultDoc["message"] = finalMessage;
+
+  String resultJson;
+  serializeJson(resultDoc, resultJson);
+
+  int reportCode = http.POST(resultJson);
+  if (reportCode == 200) {
+    Serial.printf("[REPORT] Thanh cong! Result: %s - %s\n", finalSuccess ? "SUCCESS" : "FAILED", finalName.c_str());
+  } else {
+    Serial.printf("[REPORT] Loi HTTP: %d\n", reportCode);
+  }
+  http.end();
+
   isProcessing = false;
-  Serial.println("[SCAN] Ket thuc (That bai)\n");
+  Serial.println("[SCAN] Ket thuc\n");
 }
 
 void setup() {

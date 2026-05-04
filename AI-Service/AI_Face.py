@@ -443,7 +443,7 @@ class FaceRecognitionApp:
                                 track_info["last_check"] = current_time
                                 track_info["check_count"] += 1
                                 
-                                if dist < 1.4:
+                                if dist < 0.8:  # Giảm từ 1.3 xuống 0.8 để chính xác hơn
                                     track_info["name"] = pred_name
                                     print(f"[CCTV-RECHECK] ID:{track_id} dist={dist:.3f} → {pred_name} ✅ MATCH")
                                 else:

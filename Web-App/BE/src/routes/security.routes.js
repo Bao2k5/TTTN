@@ -9,6 +9,7 @@ router.post('/temp-log', verifyDeviceKey, securityController.logTemperature);
 router.get('/alert-status', verifyDeviceKey, securityController.checkAlertStatus);
 router.get('/unlock-status', verifyDeviceKey, securityController.checkUnlockStatus);
 router.get('/face-scan-status', verifyDeviceKey, securityController.checkFaceScanStatus);
+router.post('/face-scan-result', verifyDeviceKey, securityController.reportFaceScanResult);
 router.post('/reset-alarm', verifyDeviceKey, securityController.resetAlarm);
 router.post('/log', verifyDeviceKey, securityController.createLog);
 router.put('/log/:id', verifyDeviceKey, securityController.updateLog);
