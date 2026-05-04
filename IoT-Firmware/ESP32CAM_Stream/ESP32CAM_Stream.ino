@@ -116,7 +116,7 @@ void scanFaceAndUnlock() {
 
   Serial.println("\n[SCAN] Bat dau quet khuon mat...");
 
-  int max_retries = 3;
+  int max_retries = 1;  // Giảm từ 3 xuống 1 để nhanh hơn
   bool finalSuccess = false;
   String finalName = "Unknown";
   String finalMessage = "";
@@ -124,7 +124,7 @@ void scanFaceAndUnlock() {
   for (int attempt = 1; attempt <= max_retries; attempt++) {
     Serial.printf("\n[SCAN] --- Lan chup thu %d ---\n", attempt);
 
-    delay(1000); 
+    delay(500);  // Giảm từ 1000ms xuống 500ms
 
     camera_fb_t* stale = esp_camera_fb_get();
     if (stale) esp_camera_fb_return(stale);
@@ -134,7 +134,7 @@ void scanFaceAndUnlock() {
 
     pinMode(4, OUTPUT);
     digitalWrite(4, HIGH);
-    delay(600);  // Tăng từ 400ms lên 600ms để flash sáng lâu hơn
+    delay(400);  // Giảm từ 600ms xuống 400ms để nhanh hơn
 
     camera_fb_t * fb = esp_camera_fb_get();
 

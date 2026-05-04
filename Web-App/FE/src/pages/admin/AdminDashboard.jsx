@@ -21,7 +21,7 @@ const AdminDashboard = () => {
 
   // --- FACE ID UNLOCK STATE ---
   const [faceIdState, setFaceIdState] = useState('idle'); // idle | scanning | success | fail
-  const [countdown, setCountdown] = useState(30);
+  const [countdown, setCountdown] = useState(10);  // Giảm từ 30s xuống 10s
   const pollRef = useRef(null);
   const countdownRef = useRef(null);
   // ----------------------------
@@ -120,9 +120,9 @@ const AdminDashboard = () => {
     try {
       await api.post('/security/face-scan-trigger');
       setFaceIdState('scanning');
-      setCountdown(30);
+      setCountdown(10);  // Giảm từ 30s xuống 10s
 
-      // Đếm ngược 30 giây
+      // Đếm ngược 10 giây
       countdownRef.current = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
@@ -133,14 +133,14 @@ const AdminDashboard = () => {
         });
       }, 1000);
 
-      // Timeout 30 giây: Nếu không nhận được kết quả → hiển thị thất bại
+      // Timeout 10 giây: Nếu không nhận được kết quả → hiển thị thất bại
       setTimeout(() => {
         if (faceIdState === 'scanning') {
           clearInterval(countdownRef.current);
           setFaceIdState('fail');
           setTimeout(() => setFaceIdState('idle'), 4000);
         }
-      }, 30000);
+      }, 10000);  // Giảm từ 30s xuống 10s
 
     } catch (error) {
       console.error('Face scan trigger error:', error);
