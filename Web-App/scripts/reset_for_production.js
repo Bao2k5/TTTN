@@ -19,10 +19,10 @@ const AdminLog = require('../BE/src/models/adminLog.model');
 
 const resetForProduction = async () => {
   try {
-    console.log('🔗 Connecting to MongoDB...');
+    console.log('[CONNECT] Connecting to MongoDB...');
     await connectDB();
 
-    console.log('\n📊 Current Database State:');
+    console.log('\n[STATS] Current Database State:');
     const counts = {
       users: await User.countDocuments(),
       products: await Product.countDocuments(),
@@ -37,67 +37,67 @@ const resetForProduction = async () => {
       console.log(`   ${key}: ${count}`);
     });
 
-    console.log('\n🗑️  Cleaning up test data...');
+    console.log('\n[DELETE]  Cleaning up test data...');
     
     // Remove test orders
     await Order.deleteMany({});
-    console.log('   ✓ Removed all orders (will be created by real customers)');
+    console.log('    Removed all orders (will be created by real customers)');
     
     // Remove test carts
     await Cart.deleteMany({});
-    console.log('   ✓ Removed all carts (will be created by real customers)');
+    console.log('    Removed all carts (will be created by real customers)');
     
     // Remove test reviews
     await Review.deleteMany({});
-    console.log('   ✓ Removed all reviews (will be created by real customers)');
+    console.log('    Removed all reviews (will be created by real customers)');
     
     // Remove test admin logs
     await AdminLog.deleteMany({});
-    console.log('   ✓ Removed all admin logs');
+    console.log('    Removed all admin logs');
     
     // Keep admin user, remove test users
     const adminUser = await User.findOne({ email: 'admin@example.com' });
     if (adminUser) {
       await User.deleteMany({ _id: { $ne: adminUser._id } });
-      console.log('   ✓ Kept admin user, removed test users');
+      console.log('    Kept admin user, removed test users');
     } else {
-      console.log('   ⚠️  No admin user found');
+      console.log('   [WARNING]  No admin user found');
     }
     
     // Check collections
     const collections = await Collection.find();
-    console.log('\n📦 Collections (kept):');
+    console.log('\n[PACKAGE] Collections (kept):');
     collections.forEach(col => {
       console.log(`   - ${col.name} (${col.slug})`);
     });
     
     // Check products
     const products = await Product.find();
-    console.log('\n🏆 Products (kept):');
+    console.log('\n[PRODUCT] Products (kept):');
     if (products.length === 0) {
-      console.log('   ⚠️  No products found. You need to add products via admin panel.');
+      console.log('   [WARNING]  No products found. You need to add products via admin panel.');
     } else {
       products.forEach(product => {
         console.log(`   - ${product.name} (${product.category}) - ${product.price.toLocaleString()}đ`);
       });
     }
 
-    console.log('\n✅ Database cleaned for production!');
-    console.log('\n📋 Next Steps:');
+    console.log('\n[SUCCESS] Database cleaned for production!');
+    console.log('\n[INFO] Next Steps:');
     console.log('   1. Login to admin panel: http://localhost:3001/admin');
     console.log('   2. Add real products with beautiful images');
     console.log('   3. Update collection images if needed');
     console.log('   4. Test the website thoroughly');
     console.log('   5. Deploy to production server');
     
-    console.log('\n💾 Data to keep:');
+    console.log('\n Data to keep:');
     console.log(`   - Admin user: ${adminUser ? adminUser.email : 'Not found'}`);
     console.log(`   - Collections: ${collections.length}`);
     console.log(`   - Products: ${products.length}`);
     
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('[ERROR] Error:', error);
     process.exit(1);
   }
 };

@@ -203,18 +203,18 @@ async function main() {
     }));
 
     const created = await Product.insertMany(productsWithCollection);
-    console.log(`\n✅ Created ${created.length} silver 925 products for HM Jewelry`);
+    console.log(`\n[SUCCESS] Created ${created.length} silver 925 products for HM Jewelry`);
 
     // Print product list
-    console.log('\n📦 Products created:');
+    console.log('\n[PACKAGE] Products created:');
     created.forEach((p, i) => {
       console.log(`${i + 1}. ${p.name} - ${(p.price / 1000).toFixed(0)}k đ`);
     });
 
     await mongoose.disconnect();
-    console.log('\n✅ Seeding complete!');
+    console.log('\n[SUCCESS] Seeding complete!');
   } catch (error) {
-    console.error('❌ Error:', error.message);
+    console.error('[ERROR] Error:', error.message);
     process.exit(1);
   }
 }

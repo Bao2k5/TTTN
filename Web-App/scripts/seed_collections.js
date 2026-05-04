@@ -37,28 +37,28 @@ const collections = [
 
 const seedCollections = async () => {
   try {
-    console.log('🔗 Connecting to MongoDB...');
+    console.log('[CONNECT] Connecting to MongoDB...');
     await connectDB();
 
-    console.log('🗑️  Clearing existing collections...');
+    console.log('[DELETE]  Clearing existing collections...');
     await Collection.deleteMany({});
 
-    console.log('🌱 Seeding 4 main collections...');
+    console.log(' Seeding 4 main collections...');
     const createdCollections = await Collection.insertMany(collections);
 
-    console.log('✅ Successfully seeded collections:');
+    console.log('[SUCCESS] Successfully seeded collections:');
     createdCollections.forEach((col, index) => {
       console.log(`   ${index + 1}. ${col.name} (${col.slug}) - ID: ${col._id}`);
     });
 
-    console.log('\n📊 Summary:');
+    console.log('\n[STATS] Summary:');
     console.log(`   Total collections: ${createdCollections.length}`);
     console.log(`   Featured collections: ${createdCollections.filter(c => c.featured).length}`);
 
-    console.log('\n✨ Collections seeding completed!');
+    console.log('\n[COMPLETE] Collections seeding completed!');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error seeding collections:', error);
+    console.error('[ERROR] Error seeding collections:', error);
     process.exit(1);
   }
 };

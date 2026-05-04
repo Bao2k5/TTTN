@@ -8,8 +8,8 @@ const Coupon = require('../BE/src/models/coupon.model');
 const MONGO_URI = process.env.MONGO_URI;
 
 if (!MONGO_URI) {
-  console.error('❌ MONGO_URI not found in .env file');
-  console.error('👉 Please create .env file in Web-App/BE/ directory');
+  console.error('[ERROR] MONGO_URI not found in .env file');
+  console.error('Please create .env file in Web-App/BE/ directory');
   process.exit(1);
 }
 
@@ -69,21 +69,21 @@ const coupons = [
 async function seedCoupons() {
   try {
     await mongoose.connect(MONGO_URI);
-    console.log('✅ Connected to MongoDB');
+    console.log('[SUCCESS] Connected to MongoDB');
 
     // Delete existing coupons
     await Coupon.deleteMany({});
-    console.log('🗑️  Deleted old coupons');
+    console.log('[INFO] Deleted old coupons');
 
     // Insert new coupons
     const result = await Coupon.insertMany(coupons);
-    console.log(`✅ Created ${result.length} coupons:`);
+    console.log(`[SUCCESS] Created ${result.length} coupons:`);
     result.forEach(c => console.log(`   - ${c.code}: ${c.description}`));
 
     await mongoose.disconnect();
-    console.log('✅ Done!');
+    console.log('[SUCCESS] Done!');
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('[ERROR] Error:', error);
     process.exit(1);
   }
 }

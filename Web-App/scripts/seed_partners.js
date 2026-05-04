@@ -8,11 +8,11 @@ const seedPartners = async () => {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/thuongmaidientu');
-    console.log('✅ Đã kết nối MongoDB');
+    console.log('[SUCCESS] Đã kết nối MongoDB');
 
     // Clear existing partners
     await Partner.deleteMany({});
-    console.log('🗑️  Xóa partners cũ');
+    console.log('[DELETE]  Xóa partners cũ');
 
     // Sample partners data
     const partnersSample = [
@@ -92,19 +92,19 @@ const seedPartners = async () => {
 
     // Insert partners
     const inserted = await Partner.insertMany(partnersSample);
-    console.log(`✅ Thêm ${inserted.length} partners mẫu`);
+    console.log(`[SUCCESS] Thêm ${inserted.length} partners mẫu`);
 
     // List all partners
     const allPartners = await Partner.find();
-    console.log('\n📋 Danh sách Partners:');
+    console.log('\n[INFO] Danh sách Partners:');
     allPartners.forEach((p) => {
       console.log(`  - ${p.name} (${p.displayFrom.toLocaleDateString('vi-VN')} - ${p.displayTo ? p.displayTo.toLocaleDateString('vi-VN') : 'Vĩnh viễn'})`);
     });
 
-    console.log('\n✨ Seeding partners hoàn tất!');
+    console.log('\n[COMPLETE] Seeding partners hoàn tất!');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Lỗi:', error.message);
+    console.error('[ERROR] Lỗi:', error.message);
     process.exit(1);
   }
 };

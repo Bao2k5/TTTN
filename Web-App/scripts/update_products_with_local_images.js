@@ -12,17 +12,17 @@ const Product = mongoose.model('Product', productSchema);
 
 async function updateProductImages() {
   try {
-    console.log('🔍 Đang kiểm tra ảnh trong BE/uploads/...');
+    console.log('[SEARCH] Đang kiểm tra ảnh trong BE/uploads/...');
     
     const uploadsDir = path.join(__dirname, '..', 'BE', 'uploads');
     const imageFiles = fs.readdirSync(uploadsDir)
       .filter(file => file.match(/\.(png|jpg|jpeg|webp)$/i))
       .sort();
     
-    console.log(`📁 Tìm thấy ${imageFiles.length} ảnh trong BE/uploads/`);
+    console.log(` Tìm thấy ${imageFiles.length} ảnh trong BE/uploads/`);
     
     const products = await Product.find();
-    console.log(`📦 Tìm thấy ${products.length} sản phẩm trong database`);
+    console.log(`[PACKAGE] Tìm thấy ${products.length} sản phẩm trong database`);
     
     let imageIndex = 0;
     
@@ -44,18 +44,18 @@ async function updateProductImages() {
           { _id: product._id },
           { $set: { images: newImages } }
         );
-        console.log(`✅ Đã cập nhật ${newImages.length} ảnh cho "${product.name}"`);
+        console.log(`[SUCCESS] Đã cập nhật ${newImages.length} ảnh cho "${product.name}"`);
         console.log(`   Ảnh mới: ${newImages[0].url}`);
       }
     }
     
-    console.log('\n✨ Hoàn thành! Tất cả sản phẩm đã được cập nhật với ảnh local.');
-    console.log(`📊 Đã sử dụng ${imageIndex}/${imageFiles.length} ảnh`);
+    console.log('\n[COMPLETE] Hoàn thành! Tất cả sản phẩm đã được cập nhật với ảnh local.');
+    console.log(`[STATS] Đã sử dụng ${imageIndex}/${imageFiles.length} ảnh`);
     
     mongoose.connection.close();
     process.exit(0);
   } catch (error) {
-    console.error('❌ Lỗi:', error);
+    console.error('[ERROR] Lỗi:', error);
     mongoose.connection.close();
     process.exit(1);
   }

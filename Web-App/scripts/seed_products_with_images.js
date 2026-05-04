@@ -126,26 +126,26 @@ const products = [
 const seedProducts = async () => {
   try {
     await mongoose.connect(MONGODB_URI);
-    console.log('✅ Connected to MongoDB');
+    console.log('[SUCCESS] Connected to MongoDB');
 
     // Clear existing products
     await Product.deleteMany({});
-    console.log('🗑️  Cleared existing products');
+    console.log('[DELETE]  Cleared existing products');
 
     // Insert new products
     const created = await Product.insertMany(products);
-    console.log(`✅ Created ${created.length} products with working images!`);
+    console.log(`[SUCCESS] Created ${created.length} products with working images!`);
 
-    console.log('\n📦 Products added:');
+    console.log('\n[PACKAGE] Products added:');
     created.forEach(p => {
       console.log(`   - ${p.name} (${p.category})`);
       console.log(`     Images: ${p.images.length} URLs`);
     });
 
-    console.log('\n🎉 Done! Refresh your website to see products with images!');
+    console.log('\n[DONE] Done! Refresh your website to see products with images!');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('[ERROR] Error:', error);
     process.exit(1);
   }
 };

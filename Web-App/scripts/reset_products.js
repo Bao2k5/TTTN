@@ -10,7 +10,7 @@ async function resetProducts() {
 
     // Delete all products
     const deleteResult = await Product.deleteMany({});
-    console.log(`🗑️  Deleted ${deleteResult.deletedCount} products`);
+    console.log(`[DELETE]  Deleted ${deleteResult.deletedCount} products`);
 
     // Create new products with images
     const col = await Collection.findOne({ slug: 'default' }) || await Collection.create({ name: 'Default', slug: 'default' });
@@ -65,7 +65,7 @@ async function resetProducts() {
       }
     ]);
 
-    console.log(`✅ Created ${products.length} products with images`);
+    console.log(`[SUCCESS] Created ${products.length} products with images`);
     console.log('Products:', products.map(p => `${p.name} - ${p.images[0]?.url || 'no image'}`));
 
     await mongoose.connection.close();

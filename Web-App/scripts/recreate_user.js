@@ -8,7 +8,7 @@ require('dotenv').config();
 async function recreateUser() {
   try {
     await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/thuongmaidientu');
-    console.log('✅ Connected to MongoDB');
+    console.log('[SUCCESS] Connected to MongoDB');
 
     // Xóa user cũ nếu có
     await User.deleteOne({ email: 'leduongbao2019@gmail.com' });
@@ -24,13 +24,13 @@ async function recreateUser() {
       emailVerified: true
     });
 
-    console.log('✅ User recreated successfully');
+    console.log('[SUCCESS] User recreated successfully');
     console.log('Email: leduongbao2019@gmail.com');
     console.log('Password: password123');
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('[ERROR] Error:', error);
     process.exit(1);
   }
 }

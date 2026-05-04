@@ -10,22 +10,22 @@ const envPath2 = path.join(__dirname, '../.env');    // Web-App/.env
 
 let config = dotenv.config({ path: envPath1 });
 if (config.error) {
-  console.log(`⚠️ Không tìm thấy ở: ${envPath1}`);
+  console.log(`[WARNING] Không tìm thấy ở: ${envPath1}`);
   config = dotenv.config({ path: envPath2 });
 }
 
 if (config.error || !process.env.MONGO_URI) {
-  console.error('❌ KHÔNG TÌM THẤY FILE .ENV HOẶC MONGO_URI!');
-  console.log('👉 Vui lòng kiểm tra file .env nằm ở đâu.');
+  console.error('[ERROR] KHÔNG TÌM THẤY FILE .ENV HOẶC MONGO_URI!');
+  console.log('-> Vui lòng kiểm tra file .env nằm ở đâu.');
   process.exit(1);
 }
 
-console.log('✅ Đã load cấu hình từ .env');
+console.log('[SUCCESS] Đã load cấu hình từ .env');
 
 async function resetAdmin() {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    console.log('✅ Connected to DB thành công!');
+    console.log('[SUCCESS] Connected to DB thành công!');
 
     const email = 'admin@example.com';
     const password = 'admin123';
@@ -44,12 +44,12 @@ async function resetAdmin() {
       role: 'admin'
     });
 
-    console.log(`🎉 TẠO ADMIN THÀNH CÔNG!`);
-    console.log(`👉 Email: ${email}`);
-    console.log(`👉 Pass:  ${password}`);
+    console.log(`[DONE] TẠO ADMIN THÀNH CÔNG!`);
+    console.log(`-> Email: ${email}`);
+    console.log(`-> Pass:  ${password}`);
     process.exit(0);
   } catch (err) {
-    console.error('❌ Lỗi:', err);
+    console.error('[ERROR] Lỗi:', err);
     process.exit(1);
   }
 }

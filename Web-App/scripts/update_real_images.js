@@ -40,16 +40,16 @@ mongoose.connect('mongodb://localhost:27017/hoangmyjewelry')
     }));
     
     await Product.findByIdAndUpdate(product._id, { images: updatedImages });
-    console.log(`✅ Đã cập nhật ảnh thật cho: ${product.name}`);
+    console.log(`[SUCCESS] Đã cập nhật ảnh thật cho: ${product.name}`);
     console.log(`   Images: ${updatedImages.map(i => i.url).join(', ')}`);
   }
   
-  console.log('\n🎉 Hoàn thành! Tất cả sản phẩm đã có ảnh thật');
-  console.log('🔄 Refresh lại trang web để xem ảnh mới');
+  console.log('\n[DONE] Hoàn thành! Tất cả sản phẩm đã có ảnh thật');
+  console.log(' Refresh lại trang web để xem ảnh mới');
   
   process.exit(0);
 })
 .catch(err => {
-  console.error('❌ Lỗi:', err);
+  console.error('[ERROR] Lỗi:', err);
   process.exit(1);
 });

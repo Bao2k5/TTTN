@@ -248,11 +248,11 @@ async function restoreProducts() {
     const missingProducts = allProducts.filter(p => !existingSlugs.includes(p.slug));
 
     if (missingProducts.length === 0) {
-      console.log('✅ Tất cả 20 sản phẩm đã có đủ!');
+      console.log('[SUCCESS] Tất cả 20 sản phẩm đã có đủ!');
       process.exit(0);
     }
 
-    console.log(`\n📥 Phục hồi ${missingProducts.length} sản phẩm bị xóa...`);
+    console.log(`\n[RESTORE] Phục hồi ${missingProducts.length} sản phẩm bị xóa...`);
 
     // Add collection ID and ratings
     const productsToRestore = missingProducts.map(p => ({
@@ -264,13 +264,13 @@ async function restoreProducts() {
 
     const restored = await Product.insertMany(productsToRestore);
     
-    console.log(`\n✅ Đã phục hồi ${restored.length} sản phẩm:`);
+    console.log(`\n[SUCCESS] Đã phục hồi ${restored.length} sản phẩm:`);
     restored.forEach((p, i) => {
       console.log(`${i + 1}. ${p.name} - ${(p.price / 1000).toFixed(0)}k đ`);
     });
 
     const totalNow = await Product.countDocuments();
-    console.log(`\n📊 Tổng số sản phẩm hiện tại: ${totalNow}/20`);
+    console.log(`\n[STATS] Tổng số sản phẩm hiện tại: ${totalNow}/20`);
 
     process.exit(0);
   } catch (err) {

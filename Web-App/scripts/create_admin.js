@@ -7,7 +7,7 @@ const User = require('../BE/src/models/user.model');
 const createAdmin = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    console.log('✅ Connected to MongoDB');
+    console.log('[SUCCESS] Connected to MongoDB');
 
     const email = 'admin@example.com';
     const password = 'admin123';
@@ -16,7 +16,7 @@ const createAdmin = async () => {
     // Check if admin exists
     const existing = await User.findOne({ email });
     if (existing) {
-      console.log('\n⚠️  Admin đã tồn tại!');
+      console.log('\n[WARNING]  Admin đã tồn tại!');
       console.log('   Email:', existing.email);
       console.log('   Name:', existing.name);
       console.log('   Role:', existing.role);
@@ -30,7 +30,7 @@ const createAdmin = async () => {
         verified: true,
         emailVerified: true
       });
-      console.log('\n✅ Đã cập nhật mật khẩu admin!');
+      console.log('\n[SUCCESS] Đã cập nhật mật khẩu admin!');
     } else {
       // Create new admin
       const salt = await bcrypt.genSalt(10);
@@ -45,20 +45,20 @@ const createAdmin = async () => {
         emailVerified: true
       });
 
-      console.log('\n✅ ĐÃ TẠO ADMIN THÀNH CÔNG!');
+      console.log('\n[SUCCESS] ĐÃ TẠO ADMIN THÀNH CÔNG!');
       console.log('   Email:', admin.email);
       console.log('   Name:', admin.name);
       console.log('   Role:', admin.role);
     }
 
-    console.log('\n📋 THÔNG TIN ĐĂNG NHẬP:');
+    console.log('\n[INFO] THÔNG TIN ĐĂNG NHẬP:');
     console.log('   Email: admin@example.com');
     console.log('   Password: admin123');
-    console.log('\n🔗 Đăng nhập tại: http://localhost:3001/login');
+    console.log('\n[CONNECT] Đăng nhập tại: http://localhost:3001/login');
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Lỗi:', error.message);
+    console.error('[ERROR] Lỗi:', error.message);
     process.exit(1);
   }
 };

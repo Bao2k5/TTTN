@@ -9,14 +9,14 @@ const Product = require('../BE/src/models/product.model');
  */
 const fixImageUrls = async () => {
   try {
-    console.log('🔗 Connecting to MongoDB...');
+    console.log('[CONNECT] Connecting to MongoDB...');
     await connectDB();
 
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3000';
-    console.log(`📝 Backend URL: ${backendUrl}`);
+    console.log(`[NOTE] Backend URL: ${backendUrl}`);
 
     // Fix Collections
-    console.log('\n📦 Fixing collection image URLs...');
+    console.log('\n[PACKAGE] Fixing collection image URLs...');
     const collections = await Collection.find();
     let collectionCount = 0;
 
@@ -25,17 +25,17 @@ const fixImageUrls = async () => {
         const oldUrl = collection.image;
         collection.image = `${backendUrl}${oldUrl}`;
         await collection.save();
-        console.log(`   ✓ ${collection.name}: ${oldUrl} → ${collection.image}`);
+        console.log(`    ${collection.name}: ${oldUrl} → ${collection.image}`);
         collectionCount++;
       } else if (collection.image && !collection.image.startsWith('http')) {
-        console.log(`   ⚠️  ${collection.name}: ${collection.image} (not fixed)`);
+        console.log(`   [WARNING]  ${collection.name}: ${collection.image} (not fixed)`);
       } else {
-        console.log(`   ✓ ${collection.name}: ${collection.image || 'No image'} (already OK)`);
+        console.log(`    ${collection.name}: ${collection.image || 'No image'} (already OK)`);
       }
     }
 
     // Fix Products
-    console.log('\n🏆 Fixing product image URLs...');
+    console.log('\n[PRODUCT] Fixing product image URLs...');
     const products = await Product.find();
     let productCount = 0;
 
@@ -57,22 +57,22 @@ const fixImageUrls = async () => {
 
         if (updated) {
           await product.save();
-          console.log(`   ✓ ${product.name}`);
+          console.log(`    ${product.name}`);
           productCount++;
         }
       }
     }
 
     console.log('\n' + '='.repeat(50));
-    console.log('✅ Image URL fix completed!');
+    console.log('[SUCCESS] Image URL fix completed!');
     console.log(`   Collections updated: ${collectionCount}`);
     console.log(`   Products updated: ${productCount}`);
-    console.log('\n💡 All image URLs now use full backend URL');
+    console.log('\n[TIP] All image URLs now use full backend URL');
     console.log(`   Example: ${backendUrl}/uploads/filename.png`);
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('[ERROR] Error:', error);
     process.exit(1);
   }
 };
