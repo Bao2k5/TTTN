@@ -28,7 +28,7 @@ const AdminDashboard = () => {
 
   // Initialize Socket.IO connection
   useEffect(() => {
-    const backendUrl = import.meta.env.VITE_API_URL || 'https://hm-vault.zapto.org';
+    const backendUrl = (import.meta.env.VITE_API_URL || 'https://hm-vault.zapto.org').replace('/api', '');
     const newSocket = io(backendUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true
